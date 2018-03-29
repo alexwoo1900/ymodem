@@ -8,7 +8,7 @@ import platform
 import threading
 import logging
 
-# protocol header byte
+# ymodem data header byte
 SOH = b'\x01'
 STX = b'\x02'
 EOT = b'\x04'
@@ -18,6 +18,8 @@ CAN = b'\x18'
 CRC = b'C'
 
 class YModem(object):
+
+    # For CRC algorithm
     crctable = [
         0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
         0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
@@ -52,6 +54,12 @@ class YModem(object):
         0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
         0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
     ]
+    
+    '''
+    In ymodem, raw data size can be 128 bytes or 1028 bytes.
+    We set the size of raw data in first packet to 128 bytes
+    and 1024 bytes in the rest of packets.
+    '''
     ymodem_first_packet_size = 128
     ymodem_packet_size = 1024
 
@@ -68,9 +76,13 @@ class YModem(object):
         for _ in range(count):
             self.putc(CAN)
 
+    '''
+    Send entry
+    '''
     def send(self, stream, length, func, retry=8, callback=None):
         packet_size = self.ymodem_packet_size
 
+        # checking for timeout
         def check_receive_timeout():
             global timer
             global timeout_count
@@ -103,7 +115,7 @@ class YModem(object):
                 else:
                     func("Error, expected CRC or CAN, but its " + char)
 
-        # First packet
+        # First packet(not including raw data of file but file information)
         header = self._make_send_header(self.ymodem_first_packet_size, 0)
         data = "Firmware"
         data = data.ljust(self.ymodem_first_packet_size, self.header_pad)
@@ -150,7 +162,7 @@ class YModem(object):
         sequence = 1
         while True:
             error_count = 0
-            # read data from stream
+            # read raw data from file stream
             data = stream.read(packet_size)
             if not data:
                 break
@@ -163,7 +175,7 @@ class YModem(object):
                 data_for_send = header + data + checksum
                 # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
                 func(">>> Packet " + str(sequence))
-                # send data packet
+                # send raw data packet
                 self.putc(data_for_send)
 
                 timeout_count = 0
