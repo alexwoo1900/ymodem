@@ -1,8 +1,11 @@
 # YModem for Python
+![ymodem-logo](https://raw.githubusercontent.com/alexwoo1900/YModem/master/docs/assets/ymodem-logo.png)
 
-The project is based on XModem implementation written by tehmaze. \
-YModem for Python complied YModem protocol and timeout mechanism was added to the implementation. \
+The project is based on XModem implementation written by tehmaze. 
+YModem for Python complied YModem protocol and timeout mechanism was added to the implementation. 
+
 [![Build Status](https://www.travis-ci.org/alexwoo1900/YModem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/YModem)
+
 README: [ENGLIST](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
 
 ## How to use YModem for Python
