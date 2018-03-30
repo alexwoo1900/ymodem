@@ -1,4 +1,5 @@
 # YModem for Python
+[![Build Status](https://www.travis-ci.org/alexwoo1900/YModem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/YModem)
 
 ## YModem协议的Python实现
 
