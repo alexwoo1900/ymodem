@@ -27,11 +27,12 @@ from protocol.ymodem import YModem
 ```python
 def getc(size):
     return parent.ser._serial.read(size) or None
+
 def putc(data):
     return parent.ser._serial.write(data)
+
 modem = YModem(getc, putc)
 ```
-PS: \
 get函数：自定义函数，YModem对象内部通过它获取size个数据（size为get的唯一参数，但是在协议内部固定为1） \
 put函数: 自定义函数，YModem对象内部通过它发送size个数据
 
