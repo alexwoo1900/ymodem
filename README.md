@@ -4,6 +4,8 @@ The project is based on XModem implementation written by tehmaze.
 YModem for Python complied YModem protocol and timeout mechanism was added to the implementation. 
 
 [![Build Status](https://www.travis-ci.org/alexwoo1900/YModem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/YModem)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://opensource.org/licenses/MIT)
+
 
 README: [ENGLISH](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
 

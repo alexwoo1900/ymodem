@@ -3,6 +3,7 @@
 本项目是基于tehmaze的XModem项目的YModem版本。除了遵从YModem协议外，还加入了超时处理机制。
 
 [![Build Status](https://www.travis-ci.org/alexwoo1900/YModem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/YModem)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://opensource.org/licenses/MIT)
 
 README: [ENGLIST](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
 
