@@ -1,4 +1,3 @@
-# YModem for Python
 ![ymodem-logo](https://raw.githubusercontent.com/alexwoo1900/YModem/master/docs/assets/ymodem-logo.png)
 
 The project is based on XModem implementation written by tehmaze. 
@@ -6,15 +5,17 @@ YModem for Python complied YModem protocol and timeout mechanism was added to th
 
 [![Build Status](https://www.travis-ci.org/alexwoo1900/YModem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/YModem)
 
-README: [ENGLIST](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
+README: [ENGLISH](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
+
+YModem Protocol: [ENGLISH]() | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/YMODEM_CN.md)
 
 ## How to use YModem for Python
-1. Put ymodem.py to the folder named 'protocol' and then import the class to your project
+1. Put ymodem.py to the folder named 'protocol' and then import main class to your project
 ```python
 from protocol.ymodem import YModem
 ```
 
-2. Define your custom get() and put(), then create YModem object
+2. Define your own get() and put() and create YModem object
 ```python
 def getc(size):
     return parent.ser._serial.read(size) or None
@@ -25,7 +26,7 @@ def putc(data):
 modem = YModem(getc, putc)
 ```
 
-3. send file data to the other end
+3. Send file now!
 ```python
 modem.send(stream, length, self.data_received_handler, 8, self.record_progress)
 ```
