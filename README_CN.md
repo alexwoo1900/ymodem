@@ -7,7 +7,7 @@
 
 README: [ENGLIST](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
 
-YModem Protocol: [ENGLISH]() | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/YMODEM_CN.md)
+YModem Protocol: [ENGLISH](https://github.com/alexwoo1900/YModem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/YMODEM_CN.md)
 
 ## 如何使用YModem for Python
 1. 将ymodem.py放入protocol文件夹，将YModem类引入你的工程

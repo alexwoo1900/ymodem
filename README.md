@@ -9,7 +9,7 @@ YModem for Python complied YModem protocol and timeout mechanism was added to th
 
 README: [ENGLISH](https://github.com/alexwoo1900/YModem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/README_CN.md)
 
-YModem Protocol: [ENGLISH]() | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/YMODEM_CN.md)
+YModem Protocol: [ENGLISH](https://github.com/alexwoo1900/YModem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/YModem/blob/master/YMODEM_CN.md)
 
 ## How to use YModem for Python
 1. Put ymodem.py to the folder named 'protocol' and then import main class to your project
