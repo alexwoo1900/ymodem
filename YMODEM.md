@@ -80,7 +80,7 @@ Receiver->>Sender: CAN
 ### Stage four: Finish
 At the end of transmission, sender send EOT to receiver and expect NAK. After NAK arrived, sender send EOT immediately and expect ACK.
 The ACK means the task was finish successfully.
-``
+```
 Sender->>Receiver: EOT
 Receiver->>Sender: NAK
 Sender->>Receiver: EOT
