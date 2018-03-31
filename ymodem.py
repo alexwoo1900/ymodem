@@ -71,7 +71,7 @@ class YModem(object):
         self.pad = pad
         self.log = logging.getLogger('ymodem')
 
-    # send abort(CAN)
+    # send abort(CAN) twice
     def abort(self, count=2):
         for _ in range(count):
             self.putc(CAN)
@@ -98,15 +98,16 @@ class YModem(object):
             if timeout_count > 2:
                 timer.cancel()
                 raise Exception("Receiving 1st character timeout!")
-            # try to get first char, send file when the char is CRC 
+            # try to get first char
             char = self.getc(1)
             if char:
+                # we catch CRC and go next!
                 if char == CRC:
                     func("<<< CRC")
                     timer.cancel()
                     break
+                # exit after receiving first or second CAN
                 elif char == CAN:
-                    # exit after receiving second CAN
                     func("<<< CAN")
                     timer.cancel()
                     raise Exception("Remote end stopped 1st character response!")
@@ -117,7 +118,7 @@ class YModem(object):
 
         # First packet(not including raw data of file but file information)
         header = self._make_send_header(self.ymodem_first_packet_size, 0)
-        data = "Firmware"
+        data = "file_name"
         data = data.ljust(self.ymodem_first_packet_size, self.header_pad)
         checksum = self._make_send_checksum(data)
         data_for_send = header + data + checksum
@@ -125,21 +126,25 @@ class YModem(object):
         # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
         func(">>> Packet 0")
         
+        # reset timer
         timeout_count = 0
         timer = threading.Timer(1, check_receive_timeout)
+
         error_count = 0
         cancel = 0
         while True:
             if timeout_count > 5:
                 timer.cancel()
                 raise Exception("Receiving 2nd character timeout!")
-            # try to get second char, send file when the char is CRC
+            # try to get second char
             char = self.getc(1)
             if char:
+                # we catch CRC and go next
                 if char == CRC:
                     func("<<< CRC")
                     timer.cancel()
                     break
+                # we assumed that ACK + CRC is legal
                 elif char == ACK:
                     func("<<< ACK")
                     char2 = self.getc(1)
@@ -147,6 +152,7 @@ class YModem(object):
                         func("<<< CRC")
                     timer.cancel()
                     break
+                # exit
                 elif char == CAN:
                     func("<<< CAN")
                     timer.cancel()
@@ -155,7 +161,8 @@ class YModem(object):
                     continue
                 else:
                     func("Error, expected CRC or CAN, but its " + char)
-            
+        
+
         success_count = 0
         total_packets = math.ceil(length / 1024.0)
         func("Total packets: " + str(total_packets))
@@ -184,8 +191,8 @@ class YModem(object):
                     if timeout_count > 3:
                         timer.cancel()
                         raise Exception("Receiving data response timeout!")
-                    # Success: Packet received by the other side
                     char = self.getc(1)
+                    # receive ok
                     if char == ACK:
                         func('<<< ACK')
                         success_count += 1
@@ -193,7 +200,7 @@ class YModem(object):
                         if callable(callback):
                             callback(total_packets, success_count)
                         break
-                    # Fail
+                    # receive failed
                     elif char == NAK:
                         func('<<< NAK')
                         error_count += 1
@@ -201,6 +208,7 @@ class YModem(object):
                             self.abort()
                             timer.cancel()
                             raise Exception("Retry times is up to the limit!")
+                    # exit
                     elif char == CAN:
                         func('<<< CAN')
                         timer.cancel()
@@ -208,14 +216,13 @@ class YModem(object):
                     elif char == None:
                         continue
                     else:
-                        # Unrecognized char
                         func("Error, expected ACK NAK or CAN, but its " + char)
                         continue
                 break
 
             sequence = (sequence + 1) % 0x100
 
-        # Send EOT and expect ACK
+        # Send EOT and expect final ACK
         while True:
             self.putc(EOT)
             func(">>> EOT")
