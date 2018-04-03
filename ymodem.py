@@ -46,16 +46,16 @@ class YModem(object):
         for _ in range(count):
             self.putc(CAN)
 
-    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=2000*5)
+    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=2000)
     def get_char_1(self):
         return self.getc(1)
 
-    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=5000*5)
+    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=5000)
     def get_char_2(self):
         char = self.getc(1)
         return (self.getc(1), char)[char != ACK]
 
-    @retry(retry_on_result=_retry_if_response_not_expected, stop_max_delay=3000*5)
+    @retry(retry_on_result=_retry_if_response_not_expected, stop_max_delay=3000)
     def get_packet_response(self):
         return self.getc(1)
          
