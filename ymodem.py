@@ -7,6 +7,7 @@ import math
 import platform
 import threading
 import logging
+from retrying import retry
 
 # ymodem data header byte
 SOH = b'\x01'
@@ -17,7 +18,151 @@ NAK = b'\x15'
 CAN = b'\x18'
 CRC = b'C'
 
+def _retry_if_char_not_expected(result):
+    return result != CRC and result != CAN
+
+def _retry_if_response_not_expected(result):
+    return result != CRC and result != CAN and result != NAK
+
 class YModem(object):
+    '''
+    In ymodem, raw data size can be 128 bytes or 1028 bytes.
+    We set the size of raw data in first packet to 128 bytes
+    and 1024 bytes in the rest of packets.
+    '''
+    ymodem_first_packet_size = 128
+    ymodem_packet_size = 1024
+
+    # initialize
+    def __init__(self, getc, putc, header_pad=b'\x00', pad=b'\x1a'):
+        self.getc = getc
+        self.putc = putc
+        self.header_pad = header_pad
+        self.pad = pad
+        self.log = logging.getLogger('ymodem')
+
+    # send abort(CAN) twice
+    def abort(self, count=2):
+        for _ in range(count):
+            self.putc(CAN)
+
+    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=2000*5)
+    def get_char_1(self):
+        return self.getc(1)
+
+    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=5000*5)
+    def get_char_2(self):
+        char = self.getc(1)
+        return (self.getc(1), char)[char != ACK]
+
+    @retry(retry_on_result=_retry_if_response_not_expected, stop_max_delay=3000*5)
+    def get_packet_response(self):
+        return self.getc(1)
+         
+    '''
+    Send entry
+    '''
+    def send(self, file_stream, file_size, file_name, func):
+        packet_size = self.ymodem_packet_size
+
+        char = self.get_char_1()
+        if char == CRC:
+            # Expected reponse 1
+            func("<<< CRC")
+        elif char == CAN:
+            func("<<< CAN")
+            raise Exception("Receiving 1st character timeout: received CAN")
+        else:
+            func("Error, expected CRC or CAN, but got " + char)
+            raise Exception("Receiving 1st character timeout: received not expected")
+
+        # First packet
+        header = self._make_send_header(self.ymodem_first_packet_size, 0)
+        data = file_name
+        data = data.ljust(self.ymodem_first_packet_size, self.header_pad)
+        checksum = self._make_send_checksum(data)
+        data_for_send = header + data + checksum
+        self.putc(data_for_send)
+        # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
+        func(">>> Packet 0")
+
+        char = self.get_char_2()
+        if char == CRC:
+            # Expected reponse 2
+            func("<<< CRC")
+        elif char == CAN:
+            func("<<< CAN")
+            raise Exception("Receiving 2nd character timeout: received CAN")
+        else:
+            func("Error, expected CRC or CAN, but got " + char)
+            raise Exception("Receiving 2nd character timeout: received not expected")
+        
+        total_packets = math.ceil(file_size / 1024.0)
+        func("Total packets: " + str(total_packets))
+        sequence = 1
+        while True:
+            # Read raw data from file stream
+            data = file_stream.read(packet_size)
+            if not data:
+                break
+
+            header = self._make_send_header(packet_size, sequence)
+            data = data.ljust(packet_size, self.pad)
+            checksum = self._make_send_checksum(data)
+
+            while True:
+                data_for_send = header + data + checksum
+                # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
+                func(">>> Packet " + str(sequence))
+                # Send file data packet
+                self.putc(data_for_send)
+
+                char = self.get_packet_response()
+                if char == CRC:
+                    # Expected response
+                    func("<<< CRC")
+                    break
+                elif char == CAN:
+                    func("<<< CAN")
+                    raise Exception("Receiving data response timeout: received CAN")
+                else:
+                    func("Error, expected CRC or CAN, but got " + char)
+                    raise Exception("Receiving data response timeout: received not expected")
+
+            sequence = (sequence + 1) % 0x100
+
+        # Send EOT and expect final ACK
+        while True:
+            self.putc(EOT)
+            func(">>> EOT")
+            char = self.getc(1)
+            if char == ACK:
+                func("FIN")
+                break
+            elif char == NAK:
+                self.putc(EOT)
+                func(">>> EOT")
+            else:
+                self.abort()
+                func("UNEXPECTED FIN")
+                break
+
+    # Header byte
+    def _make_send_header(self, packet_size, sequence):
+        _bytes = []
+        if packet_size == 128:
+            _bytes.append(ord(SOH))
+        elif packet_size == 1024:
+            _bytes.append(ord(STX))
+        _bytes.extend([sequence, 0xff - sequence])
+        return bytearray(_bytes)
+
+    # Make check code
+    def _make_send_checksum(self, data):
+        _bytes = []
+        crc = self.calc_crc(data)
+        _bytes.extend([crc >> 8, crc & 0xff])
+        return bytearray(_bytes)
 
     # For CRC algorithm
     crctable = [
@@ -54,204 +199,8 @@ class YModem(object):
         0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
         0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
     ]
-    
-    '''
-    In ymodem, raw data size can be 128 bytes or 1028 bytes.
-    We set the size of raw data in first packet to 128 bytes
-    and 1024 bytes in the rest of packets.
-    '''
-    ymodem_first_packet_size = 128
-    ymodem_packet_size = 1024
 
-    # initialize
-    def __init__(self, getc, putc, header_pad=b'\x00', pad=b'\x1a'):
-        self.getc = getc
-        self.putc = putc
-        self.header_pad = header_pad
-        self.pad = pad
-        self.log = logging.getLogger('ymodem')
-
-    # send abort(CAN) twice
-    def abort(self, count=2):
-        for _ in range(count):
-            self.putc(CAN)
-
-    '''
-    Send entry
-    '''
-    def send(self, stream, length, func, retry=8, callback=None):
-        packet_size = self.ymodem_packet_size
-
-        # checking for timeout
-        def check_receive_timeout():
-            global timer
-            global timeout_count
-            timeout_count += 1
-            timer = threading.Timer(1, check_receive_timeout)
-            timer.start()
-        timeout_count = 0
-        timer = threading.Timer(1, check_receive_timeout)
-
-        error_count = 0
-        cancel = 0
-        while True:
-            if timeout_count > 2:
-                timer.cancel()
-                raise Exception("Receiving 1st character timeout!")
-            # try to get first char
-            char = self.getc(1)
-            if char:
-                # we catch CRC and go next!
-                if char == CRC:
-                    func("<<< CRC")
-                    timer.cancel()
-                    break
-                # exit after receiving first or second CAN
-                elif char == CAN:
-                    func("<<< CAN")
-                    timer.cancel()
-                    raise Exception("Remote end stopped 1st character response!")
-                elif char == None:
-                    continue
-                else:
-                    func("Error, expected CRC or CAN, but its " + char)
-
-        # First packet(not including raw data of file but file information)
-        header = self._make_send_header(self.ymodem_first_packet_size, 0)
-        data = "file_name"
-        data = data.ljust(self.ymodem_first_packet_size, self.header_pad)
-        checksum = self._make_send_checksum(data)
-        data_for_send = header + data + checksum
-        self.putc(data_for_send)
-        # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
-        func(">>> Packet 0")
-        
-        # reset timer
-        timeout_count = 0
-        timer = threading.Timer(1, check_receive_timeout)
-
-        error_count = 0
-        cancel = 0
-        while True:
-            if timeout_count > 5:
-                timer.cancel()
-                raise Exception("Receiving 2nd character timeout!")
-            # try to get second char
-            char = self.getc(1)
-            if char:
-                # we catch CRC and go next
-                if char == CRC:
-                    func("<<< CRC")
-                    timer.cancel()
-                    break
-                # we assumed that ACK + CRC is legal
-                elif char == ACK:
-                    func("<<< ACK")
-                    char2 = self.getc(1)
-                    if char2 == CRC:
-                        func("<<< CRC")
-                    timer.cancel()
-                    break
-                # exit
-                elif char == CAN:
-                    func("<<< CAN")
-                    timer.cancel()
-                    raise Exception("Remote end stopped 2nd character response!")
-                elif char == None:
-                    continue
-                else:
-                    func("Error, expected CRC or CAN, but its " + char)
-        
-
-        success_count = 0
-        total_packets = math.ceil(length / 1024.0)
-        func("Total packets: " + str(total_packets))
-        sequence = 1
-        while True:
-            error_count = 0
-            # read raw data from file stream
-            data = stream.read(packet_size)
-            if not data:
-                break
-
-            header = self._make_send_header(packet_size, sequence)
-            data = data.ljust(packet_size, self.pad)
-            checksum = self._make_send_checksum(data)
-
-            while True:
-                data_for_send = header + data + checksum
-                # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
-                func(">>> Packet " + str(sequence))
-                # send raw data packet
-                self.putc(data_for_send)
-
-                timeout_count = 0
-                timer = threading.Timer(1, check_receive_timeout)
-                while True:
-                    if timeout_count > 3:
-                        timer.cancel()
-                        raise Exception("Receiving data response timeout!")
-                    char = self.getc(1)
-                    # receive ok
-                    if char == ACK:
-                        func('<<< ACK')
-                        success_count += 1
-                        timer.cancel()
-                        if callable(callback):
-                            callback(total_packets, success_count)
-                        break
-                    # receive failed
-                    elif char == NAK:
-                        func('<<< NAK')
-                        error_count += 1
-                        if error_count > retry:
-                            self.abort()
-                            timer.cancel()
-                            raise Exception("Retry times is up to the limit!")
-                    # exit
-                    elif char == CAN:
-                        func('<<< CAN')
-                        timer.cancel()
-                        raise Exception("Remote end stopped data response")
-                    elif char == None:
-                        continue
-                    else:
-                        func("Error, expected ACK NAK or CAN, but its " + char)
-                        continue
-                break
-
-            sequence = (sequence + 1) % 0x100
-
-        # Send EOT and expect final ACK
-        while True:
-            self.putc(EOT)
-            func(">>> EOT")
-            char = self.getc(1)
-            if char == ACK:
-                break
-            else:
-                error_count += 1
-                if error_count > retry:
-                    self.abort()
-
-    # header byte
-    def _make_send_header(self, packet_size, sequence):
-        _bytes = []
-        if packet_size == 128:
-            _bytes.append(ord(SOH))
-        elif packet_size == 1024:
-            _bytes.append(ord(STX))
-        _bytes.extend([sequence, 0xff - sequence])
-        return bytearray(_bytes)
-
-    # CRC algorithm
-    def _make_send_checksum(self, data):
-        _bytes = []
-        crc = self.calc_crc(data)
-        _bytes.extend([crc >> 8, crc & 0xff])
-        return bytearray(_bytes)
-    
-    # CCITT-0
+    # CRC algorithm: CCITT-0
     def calc_crc(self, data, crc=0):
         for char in bytearray(data):
             crctbl_idx = ((crc >> 8) ^ char) & 0xff

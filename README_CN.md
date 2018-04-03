@@ -18,17 +18,17 @@ from protocol.ymodem import YModem
 2. 定义必要的getc()与putc(),并创建YModem对象
 ```python
 def getc(size):
-    return parent.ser._serial.read(size) or None
+    return serial_io.read(size) or None
 
 def putc(data):
-    return parent.ser._serial.write(data)
+    return serial_io.write(data)
 
 modem = YModem(getc, putc)
 ```
 
 3. 开始传输数据
 ```python
-modem.send(stream, length, self.data_received_handler, 8, self.record_progress)
+modem.send(file_stream, file_size, file_name, displayMessage)
 ```
 ## YModem for Python API
 
@@ -41,17 +41,22 @@ putc: 自定义函数，YModem对象内部通过它发送size个数据
 
 ### 发送数据
 ```python
-def send(self, stream, length, func, retry=8, callback=None)
+def send(self, file_stream, file_size, file_name, func)
 ```
-- stream: 待传输数据流
-- length：数据长度
+- file_stream: 文件数据流
+- file_size：文件大小
+- file_name: 文件名
 - func：自定义函数，只有一个参数，为消息，用于处理内部提示消息
-- retry: 传输数据出错时允许重试的次数，默认为8
-- callback: 成功发送文件数据包时的回调函数，接收一个数据包总数与成功数据包总数，一般用于统计YModem传输效率。默认为空
+
 
 ## 更新日志
 ### v0.5.0 (2018/3/30 15:00 +00:00)
 - 项目初版上线
+
+### v0.7.0 (2018/4/3 11:15 +00:00)
+- 重写超时机制
+- 去除冗余信息
+- 编写测试用例
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)

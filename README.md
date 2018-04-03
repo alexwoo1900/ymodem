@@ -20,17 +20,17 @@ from protocol.ymodem import YModem
 2. Define your own get() and put() and create YModem object
 ```python
 def getc(size):
-    return parent.ser._serial.read(size) or None
+    return serial_io.read(size) or None
 
 def putc(data):
-    return parent.ser._serial.write(data)
+    return serial_io.write(data)
 
 modem = YModem(getc, putc)
 ```
 
 3. Send file now!
 ```python
-modem.send(stream, length, self.data_received_handler, 8, self.record_progress)
+modem.send(file_stream, file_size, file_name, displayMessage)
 ```
 ## YModem for Python API
 
@@ -43,17 +43,21 @@ put(): Custom function. Sending data bytes to this function in YModem implementa
 
 ### Send data
 ```python
-def send(self, stream, length, func, retry=8, callback=None)
+def send(self, file_stream, file_size, file_name, func)
 ```
-- stream: data stream
-- length：data length
+- file_stream: file data stream
+- file_size：size of the file
+- file_name: name of the file
 - func：handler for debug message
-- retry: times of resend
-- callback: callback after packet received by the other side
 
 ## Change logs
 ### v0.5.0 (2018/3/30 15:00 +00:00)
 - First edition goes live 
+
+### v0.7.0 (2018/4/3 11:15 +00:00)
+- rewrite timeout mechanism
+- remove unnecessary information
+- add testing for ymodem
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)
