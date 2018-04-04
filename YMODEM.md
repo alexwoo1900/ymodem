@@ -1,6 +1,7 @@
-# YModem Protocol
+# YMODEM Batch Transmission Protocol
+YMODEM BatchTransmission Protocol(YMODEM Protocol) is based on XMODEM-1K Protocol and added batch transmisson feature.
 
-There are serveral common versions about YModem implementation, including complete version which with file size(Hyper Terminal) and no-file-size one(SecureCRT). But it doesnt matter and the cores are the same.
+There are serveral common versions about YMODEM implementation, including complete version which with file size(Hyper Terminal) and no-file-size one(SecureCRT). But it doesnt matter and the cores are the same.
 
 ## Symbol
 In the following introduction, we will use some symbols to define special hex data.
@@ -38,19 +39,18 @@ SOH / STX |  |  | | |
 
 ## Procedure
 ### Stage one: Preparing
-Receiver send char 'C' to sender and expect to receive ACK.
-After receiver get ACK from sender, receiver preparing to receive file data.(return char 'C' to sender of course).
+Receiver send char 'C' to sender
 ```
 Receiver->>Sender: Char 'C'
-Sender->>Receiver: ACK
-Receiver->>Sender: Char 'C'
 ```
+
 ### Stage two: First packet
-Sender received second char 'C' from receiver and start to send first packet and expect ACK.
-After sender get ACK from receiver, sender will send raw data of file.
+Sender received char 'C' from receiver and start to send first packet and expect ACK and 'C'.
+After sender get ACK and 'C' from receiver, sender will send raw data of file.
 ```
 Sender->>Receiver: Packet 0
 Receiver->>Sender: ACK
+Receiver->>Sender: Char 'C'
 ```
 
 ### Stage three: File packet

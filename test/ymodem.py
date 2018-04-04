@@ -4,10 +4,9 @@
 import sys
 import time
 import math
-import platform
-import threading
+import string
 import logging
-from retrying import retry
+logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s - %(levelname)s - %(message)s')
 
 # ymodem data header byte
 SOH = b'\x01'
@@ -18,93 +17,107 @@ NAK = b'\x15'
 CAN = b'\x18'
 CRC = b'C'
 
-def _retry_if_char_not_expected(result):
-    return result != CRC and result != CAN
-
-def _retry_if_response_not_expected(result):
-    return result != CRC and result != CAN and result != NAK
-
-class YModem(object):
-    '''
-    In ymodem, raw data size can be 128 bytes or 1028 bytes.
-    We set the size of raw data in first packet to 128 bytes
-    and 1024 bytes in the rest of packets.
-    '''
-    ymodem_first_packet_size = 128
-    ymodem_packet_size = 1024
+class YMODEM(object):
 
     # initialize
-    def __init__(self, getc, putc, header_pad=b'\x00', pad=b'\x1a'):
+    def __init__(self, getc, putc, mode='ymodem', header_pad=b'\x00', pad=b'\x1a'):
         self.getc = getc
         self.putc = putc
+        self.mode = mode
         self.header_pad = header_pad
         self.pad = pad
-        self.log = logging.getLogger('ymodem')
+        self.log = logging.getLogger('YReporter')
 
     # send abort(CAN) twice
-    def abort(self, count=2):
+    def abort(self, count=2, timeout=15):
         for _ in range(count):
-            self.putc(CAN)
-
-    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=2000*5)
-    def get_char_1(self):
-        return self.getc(1)
-
-    @retry(retry_on_result=_retry_if_char_not_expected, stop_max_delay=5000*5)
-    def get_char_2(self):
-        char = self.getc(1)
-        return (self.getc(1), char)[char != ACK]
-
-    @retry(retry_on_result=_retry_if_response_not_expected, stop_max_delay=3000*5)
-    def get_packet_response(self):
-        return self.getc(1)
+            self.putc(CAN, timeout)
          
     '''
-    Send entry
+    send entry
     '''
-    def send(self, file_stream, file_size, file_name, func):
-        packet_size = self.ymodem_packet_size
+    def send(self, file_stream, file_name, retry=20, timeout=15, callback=None):
+        try:
+            packet_size = dict(
+                ymodem = 1024,
+                ymodem128 = 128
+            )[self.mode]
+        except KeyError:
+            raise ValueError("Invalid mode specified: {self.mode!r}".format(self=self))
 
-        char = self.get_char_1()
-        if char == CRC:
-            # Expected reponse 1
-            func("<<< CRC")
-        elif char == CAN:
-            func("<<< CAN")
-            raise Exception("Receiving 1st character timeout: received CAN")
-        else:
-            func("Error, expected CRC or CAN, but got " + char)
-            raise Exception("Receiving 1st character timeout: received not expected")
+        self.log.debug('Begin start sequence, packet_size=%d', packet_size)
 
-        # First packet
-        header = self._make_send_header(self.ymodem_first_packet_size, 0)
+        # Receive first character
+        error_count = 0
+        cancel = 0
+        while True:
+            char = self.getc(1, timeout)
+            if char:
+                if char == CRC:
+                    # Expected CRC
+                    self.log.info("<<< CRC")
+                    break
+                elif char == CAN:
+                    self.log.info("<<< CAN")
+                    if cancel:
+                        return False
+                    else:
+                        cancel = 1
+                else:
+                    self.log.error("send error, expected CRC or CAN, but got " + hex(ord(char)))
+
+            error_count += 1
+            if error_count > retry:
+                self.abort(timeout=timeout)
+                self.log.error("send error: error_count reached %d aborting", retry)
+                return False
+
+        # Send first packet
+        header = self._make_send_header(packet_size, 0)
         data = file_name
-        data = data.ljust(self.ymodem_first_packet_size, self.header_pad)
+        data = data.ljust(packet_size, self.header_pad)
         checksum = self._make_send_checksum(data)
         data_for_send = header + data + checksum
         self.putc(data_for_send)
         # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
-        func(">>> Packet 0")
+        self.log.info("Packet 0 >>>")
 
-        char = self.get_char_2()
-        if char == CRC:
-            # Expected reponse 2
-            func("<<< CRC")
-        elif char == CAN:
-            func("<<< CAN")
-            raise Exception("Receiving 2nd character timeout: received CAN")
-        else:
-            func("Error, expected CRC or CAN, but got " + char)
-            raise Exception("Receiving 2nd character timeout: received not expected")
+        error_count = 0
+        cancel = 0
+        # Receive reponse of first packet
+        while True:
+            char = self.getc(1, timeout)
+            if char:
+                if char == ACK:
+                    self.log.info("<<< ACK")
+                    char2 = self.getc(1, timeout)
+                    if char2 == CRC:
+                        self.log.info("<<< CRC")
+                        break
+                    else:
+                        self.log.warn("ACK wasnt CRCd")
+                        break
+                elif char == CAN:
+                    self.log.info("<<< CAN")
+                    if cancel:
+                        return False
+                    else:
+                        cancel = 1
+                else:
+                    self.log.error("send error, expected ACK or CAN, but got " + hex(ord(char)))
         
-        total_packets = math.ceil(file_size / 1024.0)
-        func("Total packets: " + str(total_packets))
+        error_count = 0
+        cancel = 0
+        success_count = 0
+        total_packets = 1
         sequence = 1
         while True:
             # Read raw data from file stream
             data = file_stream.read(packet_size)
             if not data:
+                self.log.debug('send: at EOF')
                 break
+            total_packets += 1
 
             header = self._make_send_header(packet_size, sequence)
             data = data.ljust(packet_size, self.pad)
@@ -113,42 +126,163 @@ class YModem(object):
             while True:
                 data_for_send = header + data + checksum
                 # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
-                func(">>> Packet " + str(sequence))
+
                 # Send file data packet
                 self.putc(data_for_send)
+                self.log.info("Packet " + str(sequence) + " >>>")
 
-                char = self.get_packet_response()
-                if char == CRC:
+                char = self.getc(1, timeout)
+                if char == ACK:
                     # Expected response
-                    func("<<< CRC")
+                    self.log.info("<<< ACK")
+                    success_count += 1
+                    if callable(callback):
+                        callback(total_packets, success_count, error_count)
+                    error_count = 0
                     break
-                elif char == CAN:
-                    func("<<< CAN")
-                    raise Exception("Receiving data response timeout: received CAN")
-                else:
-                    func("Error, expected CRC or CAN, but got " + char)
-                    raise Exception("Receiving data response timeout: received not expected")
+                
+                error_count += 1
+                if callable(callback):
+                    callback(total_packets, success_count, error_count)
+
+                if error_count > retry:
+                    self.abort(timeout=timeout)
+                    self.log.error('send error: NAK received %d , aborting', retry)
+                    return False
 
             sequence = (sequence + 1) % 0x100
 
         # Send EOT and expect final ACK
         while True:
             self.putc(EOT)
-            func(">>> EOT")
-            char = self.getc(1)
+            self.log.info(">>> EOT")
+            char = self.getc(1, timeout)
             if char == ACK:
-                func("FIN")
+                self.log.info("<<< ACK")
                 break
-            elif char == NAK:
-                self.putc(EOT)
-                func(">>> EOT")
             else:
-                self.abort()
-                func("UNEXPECTED FIN")
+                error_count += 1
+                if error_count > retry:
+                    self.abort(timeout=timeout)
+                    self.log.warn('EOT wasnt ACKd, aborting transfer')
+                    return False
+
+        self.log.info('Transmission successful (ACK received)')
+        return True
+
+    '''
+    recv entry
+    '''
+    def recv(self, file_stream, retry=20, timeout=15, delay=0.01):
+        error_count = 0 
+        cancel = 0
+        char = ""
+        while True:
+            if error_count >= retry:
+                self.abort(timeout=timeout)
+                self.log.error('error_count reached %d, aborting.', retry)
+                return None
+            else:
+                if not self.putc(CRC):
+                    time.sleep(delay)
+                    error_count += 1
+                self.log.info("CRC >>>")
+
+            # Get First response
+            char = self.getc(1, timeout)
+            # First packet arrived
+            if char == SOH:
+                self.log.info("<<< SOH")
                 break
+            elif char == STX:
+                self.log.info("<<< STX")
+                break
+            elif char == CAN:
+                self.log.info("<<< CAN")
+                if cancel:
+                    return None
+                else:
+                    cancel = 1
+            else:
+                error_count += 1
+
+        error_count = 0
+        cancel = 0
+        file_size = 0
+        packet_size = 1024
+        sequence = 0
+        while True:
+            while True:
+                if char == SOH:
+                    packet_size = 128
+                    break
+                elif char == STX:
+                    packet_size = 1024
+                    break
+                elif char == EOT:
+                    self.putc(ACK)
+                    return file_size
+                elif char == CAN:
+                    if cancel:
+                        return None
+                    else:
+                        cancel = 1
+                else:
+                    error_count += 1
+                    if error_count > retry:
+                        self.abort(timeout=timeout)
+                        return None
+
+                error_count = 0
+                cancel = 0 
+                seq = self.getc(1)
+                if seq is None:
+                    seq_oc = None
+                else:
+                    seq = ord(seq)
+                    seq_oc = self.getc(1)
+                    if seq_oc is None:
+                        pass
+                    else:
+                        seq_oc = 0xFF - ord(seq_oc)
+
+                if not (seq == seq_oc == sequence):
+                    self.getc(packet_size + 1)
+                else:
+                    data = self.getc(packet_size + 1)
+                    valid, _ = self._verify_recv_checksum(data)
+
+                    if valid:
+                        if seq == 0:
+                            file_name = string.strip(data[-1:])
+                            self.putc(ACK)
+                            self.log.info("ACK >>>")
+                            self.putc(CRC)
+                            self.log.info("CRC >>>")
+                            sequence = (sequence + 1) % 0x100
+                            char = self.getc(1)
+                            continue
+                        else:
+                            file_size += len(packet_size)
+                            file_stream.write(data[-1:])
+                            self.putc(ACK)
+                            sequence = (sequence + 1) % 0x100
+                            char = self.getc(1)
+                            continue
+
+                while True:
+                    data = self.getc(1)
+                    if data is None:
+                        break
+                
+                self.putc(NAK)
+                char = self.getc(1)
+                continue
+
 
     # Header byte
     def _make_send_header(self, packet_size, sequence):
+        assert packet_size in (128, 1024), packet_size
         _bytes = []
         if packet_size == 128:
             _bytes.append(ord(SOH))
@@ -163,6 +297,15 @@ class YModem(object):
         crc = self.calc_crc(data)
         _bytes.extend([crc >> 8, crc & 0xff])
         return bytearray(_bytes)
+
+    def _verify_recv_checksum(self, data):
+        _checksum = bytearray(data[-2:])
+        their_sum = (_checksum[0] << 8) + _checksum[1]
+        data = data[:-2]
+
+        our_sum = self.calc_crc(data)
+        valid = bool(their_sum == our_sum)
+        return valid, data
 
     # For CRC algorithm
     crctable = [
