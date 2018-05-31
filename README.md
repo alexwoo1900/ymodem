@@ -8,7 +8,7 @@ The project is based on XMODEM implementation written by tehmaze.
 
 README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
-YModem Protocol: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM_CN.md)
+YMODEM Protocol: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM_CN.md)
 
 ## How to use YMODEM for Python
 1. Put ymodem.py to the folder named 'protocol' and then import main class to your project
