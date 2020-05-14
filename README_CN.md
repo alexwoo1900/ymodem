@@ -13,6 +13,7 @@ YMODEM Protocol: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/YMO
 如果想运行测试例子，请执行以下操作：
 1. 利用串口虚拟工具在本地生成可相互通信的COM1与COM2
 2. 在命令行中分别运行test_receiver.py与test_sender.py文件
+
 具体的传输过程如下图所示（左边为发送者，右边为接收者）：
 ![cmd_test](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.png)
 ![hash_result](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/hash_result.png)
