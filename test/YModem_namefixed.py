@@ -20,8 +20,6 @@ NAK = b'\x15'
 CAN = b'\x18'
 CRC = b'C'
 
-
-
 class YModem(object):
     def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a'):
         self.getc = getc
