@@ -1,12 +1,15 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import sys
 import time
 import math
 import string
 import logging
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s - %(levelname)s - %(message)s')
+
+from YMTask import SendTask, ReceiveTask
 
 # ymodem data header byte
 SOH = b'\x01'
@@ -17,271 +20,312 @@ NAK = b'\x15'
 CAN = b'\x18'
 CRC = b'C'
 
-class YMODEM(object):
 
-    # initialize
-    def __init__(self, getc, putc, mode='ymodem', header_pad=b'\x00', pad=b'\x1a'):
+
+class YModem(object):
+    def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a'):
         self.getc = getc
         self.putc = putc
-        self.mode = mode
+        self.st = SendTask()
+        self.rt = ReceiveTask()
         self.header_pad = header_pad
-        self.pad = pad
+        self.data_pad = data_pad
         self.log = logging.getLogger('YReporter')
 
-    # send abort(CAN) twice
-    def abort(self, count=2, timeout=15):
+    def abort(self, count=2):
         for _ in range(count):
-            self.putc(CAN, timeout)
-         
-    '''
-    send entry
-    '''
-    def send(self, file_stream, file_name, retry=20, timeout=15, callback=None):
+            self.putc(CAN)
+
+    def send_file(self, file_path, retry=20, callback=None):
         try:
-            packet_size = dict(
-                ymodem = 1024,
-                ymodem128 = 128
-            )[self.mode]
-        except KeyError:
-            raise ValueError("Invalid mode specified: {self.mode!r}".format(self=self))
-
-        self.log.debug('Begin start sequence, packet_size=%d', packet_size)
-
-        # Receive first character
-        error_count = 0
-        cancel = 0
-        while True:
-            char = self.getc(1, timeout)
-            if char:
-                if char == CRC:
-                    # Expected CRC
-                    self.log.info("<<< CRC")
-                    break
-                elif char == CAN:
-                    self.log.info("<<< CAN")
-                    if cancel:
-                        return False
-                    else:
-                        cancel = 1
-                else:
-                    self.log.error("send error, expected CRC or CAN, but got " + hex(ord(char)))
-
-            error_count += 1
-            if error_count > retry:
-                self.abort(timeout=timeout)
-                self.log.error("send error: error_count reached %d aborting", retry)
-                return False
-
-        # Send first packet
-        header = self._make_send_header(packet_size, 0)
-        data = file_name
-        data = data.ljust(packet_size, self.header_pad)
-        checksum = self._make_send_checksum(data)
-        data_for_send = header + data + checksum
-        self.putc(data_for_send)
-        # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
-        self.log.info("Packet 0 >>>")
-
-        error_count = 0
-        cancel = 0
-        # Receive reponse of first packet
-        while True:
-            char = self.getc(1, timeout)
-            if char:
-                if char == ACK:
-                    self.log.info("<<< ACK")
-                    char2 = self.getc(1, timeout)
-                    if char2 == CRC:
-                        self.log.info("<<< CRC")
-                        break
-                    else:
-                        self.log.warn("ACK wasnt CRCd")
-                        break
-                elif char == CAN:
-                    self.log.info("<<< CAN")
-                    if cancel:
-                        return False
-                    else:
-                        cancel = 1
-                else:
-                    self.log.error("send error, expected ACK or CAN, but got " + hex(ord(char)))
+            file_stream = open(file_path, 'rb')
+            file_name = os.path.basename(file_path)
+            file_size = os.path.getsize(file_path)
+            file_sent = self.send(file_stream, file_name, file_size, retry, callback)
+        except IOError as e:
+            self.log.error(str(e))
+        finally:
+            file_stream.close()
         
+        self.log.debug("Task Done!")
+        self.log.debug("File: " + file_name)
+        self.log.debug("Size: " + str(file_sent) + "Bytes")
+        self.log.debug("Packets: " + str(self.st.get_valid_sent_packets()))
+        return file_sent
+    
+    def wait_for_next(self, ch):
+        cancel_count = 0
+        while True:
+            c = self.getc(1)
+            if c:
+                if c == ch:
+                    self.log.debug("<<< " + hex(ord(ch)))
+                    break
+                elif c == CAN:
+                    if cancel_count == 2:
+                        return -1
+                    else:
+                        cancel_count += 1
+                else:
+                    self.log.warn("Expected " + hex(ord(ch)) + ", but got " + hex(ord(c)))
+                        
+    def send(self, data_stream, data_name, data_size, retry=20, callback=None):
+        packet_size = 1024
+
+        # [<<< CRC]
+        self.wait_for_next(CRC)
+
+        # [first packet >>>]
+        header = self._make_edge_packet_header()
+
+        if len(data_name) > 100:
+            data_name = data_name[:100]
+        self.st.set_task_name(data_name)
+        data_name += bytes.decode(self.header_pad)
+
+        data_size = str(data_size)
+        if len(data_size) > 20:
+            raise Exception("Data volume is too large!")
+        self.st.set_task_size(int(data_size))
+        data_size += bytes.decode(self.header_pad)
+
+        data = data_name + data_size
+        data = data.ljust(128, bytes.decode(self.header_pad))
+
+        checksum = self._make_send_checksum(data)
+
+        data_for_send = header + data.encode() + checksum
+        self.putc(data_for_send)
+        self.st.inc_sent_packets()
+        # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
+        self.log.debug("Packet 0 >>>")
+
+        # [<<< ACK]
+        # [<<< CRC]
+        self.wait_for_next(ACK)
+        self.wait_for_next(CRC)
+        
+        # [data packet >>>]
+        # [<<< ACK]
         error_count = 0
-        cancel = 0
-        success_count = 0
-        total_packets = 1
         sequence = 1
         while True:
-            # Read raw data from file stream
-            data = file_stream.read(packet_size)
-            if not data:
-                self.log.debug('send: at EOF')
-                break
-            total_packets += 1
+            data = data_stream.read(packet_size)
 
-            header = self._make_send_header(packet_size, sequence)
-            data = data.ljust(packet_size, self.pad)
+            if not data:
+                self.log.debug('EOF')
+                break
+
+            extracted_data_bytes = len(data)
+
+            if extracted_data_bytes <= 128:
+                packet_size = 128
+            
+            header = self._make_data_packet_header(packet_size, sequence)
+            data = data.ljust(packet_size, self.data_pad)
             checksum = self._make_send_checksum(data)
+            data_for_send = header + data + checksum
+            # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
 
             while True:
-                data_for_send = header + data + checksum
-                # data_in_hexstring = "".join("%02x" % b for b in data_for_send)
-
-                # Send file data packet
                 self.putc(data_for_send)
-                self.log.info("Packet " + str(sequence) + " >>>")
+                self.st.inc_sent_packets()
+                self.log.debug("Packet " + str(sequence) + " >>>")
 
-                char = self.getc(1, timeout)
-                if char == ACK:
-                    # Expected response
-                    self.log.info("<<< ACK")
-                    success_count += 1
-                    if callable(callback):
-                        callback(total_packets, success_count, error_count)
+                c = self.getc(1)
+                if c == ACK:
+                    self.log.debug("<<< ACK")
+                    self.st.inc_valid_sent_packets()
+                    self.st.add_valid_sent_bytes(extracted_data_bytes)
                     error_count = 0
                     break
-                
-                error_count += 1
-                if callable(callback):
-                    callback(total_packets, success_count, error_count)
+                else:
+                    error_count += 1
+                    self.st.inc_missing_sent_packets()
+                    self.log.debug("RETRY " + str(error_count))
 
-                if error_count > retry:
-                    self.abort(timeout=timeout)
-                    self.log.error('send error: NAK received %d , aborting', retry)
-                    return False
+                    if error_count > retry:
+                        self.abort()
+                        self.log.error('send error: NAK received %d , aborting', retry)
+                        return -2
 
             sequence = (sequence + 1) % 0x100
 
-        # Send EOT and expect final ACK
+        # [EOT >>>]
+        # [<<< NAK]
+        # [EOT >>>]
+        # [<<< ACK]
+        self.putc(EOT)
+        self.log.debug(">>> EOT")
+        self.wait_for_next(NAK)
+        self.putc(EOT)
+        self.log.debug(">>> EOT")
+        self.wait_for_next(ACK)
+
+        # [<<< CRC]
+        self.wait_for_next(CRC)
+        
+        # [Final packet >>>]
+        header = self._make_edge_packet_header()
+        data = "".ljust(128, bytes.decode(self.header_pad))
+        checksum = self._make_send_checksum(data)
+        data_for_send = header + data.encode() + checksum
+        self.putc(data_for_send)
+        self.st.inc_sent_packets()
+        self.log.debug("Packet End >>>")
+
+        self.wait_for_next(ACK)
+
+        return self.st.get_valid_sent_bytes()
+
+    def wait_for_header(self):
+        cancel_count = 0
         while True:
-            self.putc(EOT)
-            self.log.info(">>> EOT")
-            char = self.getc(1, timeout)
-            if char == ACK:
-                self.log.info("<<< ACK")
-                break
-            else:
-                error_count += 1
-                if error_count > retry:
-                    self.abort(timeout=timeout)
-                    self.log.warn('EOT wasnt ACKd, aborting transfer')
-                    return False
-
-        self.log.info('Transmission successful (ACK received)')
-        return True
-
-    '''
-    recv entry
-    '''
-    def recv(self, file_stream, retry=20, timeout=15, delay=0.01):
-        error_count = 0 
-        cancel = 0
-        char = ""
-        while True:
-            if error_count >= retry:
-                self.abort(timeout=timeout)
-                self.log.error('error_count reached %d, aborting.', retry)
-                return None
-            else:
-                if not self.putc(CRC):
-                    time.sleep(delay)
-                    error_count += 1
-                self.log.info("CRC >>>")
-
-            # Get First response
-            char = self.getc(1, timeout)
-            # First packet arrived
-            if char == SOH:
-                self.log.info("<<< SOH")
-                break
-            elif char == STX:
-                self.log.info("<<< STX")
-                break
-            elif char == CAN:
-                self.log.info("<<< CAN")
-                if cancel:
-                    return None
+            c = self.getc(1)
+            if c:
+                if c == SOH or c == STX:
+                    return c
+                elif c == CAN:
+                    if cancel_count == 2:
+                        return -1
+                    else:
+                        cancel_count += 1
                 else:
-                    cancel = 1
-            else:
-                error_count += 1
+                    self.log.warn("Expected 0x01(SOH)/0x02(STX)/0x18(CAN), but got " + hex(ord(c)))
 
-        error_count = 0
-        cancel = 0
-        file_size = 0
-        packet_size = 1024
-        sequence = 0
+    def wait_for_eot(self):
+        eot_count = 0
         while True:
-            while True:
-                if char == SOH:
+            c = self.getc(1)
+            if c:
+                if c == EOT:
+                    eot_count += 1
+                    if eot_count == 1:
+                        self.log.debug("EOT >>>")
+                        self.putc(NAK)
+                        self.log.debug("<<< NAK")
+                    elif eot_count == 2:
+                        self.log.debug("EOT >>>")
+                        self.putc(ACK)
+                        self.log.debug("<<< ACK")
+                        self.putc(CRC)
+                        self.log.debug("<<< CRC")
+                        break
+                else:
+                    self.log.warn("Expected 0x04(EOT), but got " + hex(ord(c)))
+
+    def recv_file(self, root_path, callback=None):
+        while True:
+            self.putc(CRC)
+            self.log.debug("<<< CRC")
+            c = self.getc(1)
+            if c:
+                if c == SOH:
                     packet_size = 128
                     break
-                elif char == STX:
+                elif c == STX:
                     packet_size = 1024
                     break
-                elif char == EOT:
-                    self.putc(ACK)
-                    return file_size
-                elif char == CAN:
-                    if cancel:
-                        return None
-                    else:
-                        cancel = 1
                 else:
-                    error_count += 1
-                    if error_count > retry:
-                        self.abort(timeout=timeout)
-                        return None
+                    self.log.warn("Expected 0x01(SOH)/0x02(STX)/0x18(CAN), but got " + hex(ord(c)))
+        
+        IS_FIRST_PACKET = True
+        FIRST_PACKET_RECEIVED = False
+        WAIT_FOR_EOT = False
+        WAIT_FOR_END_PACKET = False
+        sequence = 0
+        while True:
+            if WAIT_FOR_EOT:
+                self.wait_for_eot()
+                WAIT_FOR_EOT = False
+                WAIT_FOR_END_PACKET = True
+                sequence = 0
+            else:
+                if IS_FIRST_PACKET:
+                    IS_FIRST_PACKET = False
+                else:
+                    c = self.wait_for_header()
 
-                error_count = 0
-                cancel = 0 
+                    if c == SOH:
+                        packet_size = 128
+                    elif c == STX:
+                        packet_size = 1024
+                    else:
+                        return c
+
                 seq = self.getc(1)
                 if seq is None:
                     seq_oc = None
                 else:
                     seq = ord(seq)
-                    seq_oc = self.getc(1)
-                    if seq_oc is None:
-                        pass
-                    else:
-                        seq_oc = 0xFF - ord(seq_oc)
+                    c = self.getc(1)
+                    if c is not None:
+                        seq_oc = 0xFF - ord(c)
 
+                data = self.getc(packet_size + 2)
                 if not (seq == seq_oc == sequence):
-                    self.getc(packet_size + 1)
+                    continue
                 else:
-                    data = self.getc(packet_size + 1)
                     valid, _ = self._verify_recv_checksum(data)
 
                     if valid:
-                        if seq == 0:
-                            file_name = string.strip(data[-1:])
+                        # first packet
+                        # [<<< ACK]
+                        # [<<< CRC]
+                        if seq == 0 and not FIRST_PACKET_RECEIVED and not WAIT_FOR_END_PACKET:
+                            self.log.debug("Packet 0 >>>")
                             self.putc(ACK)
-                            self.log.info("ACK >>>")
+                            self.log.debug("<<< ACK")
                             self.putc(CRC)
-                            self.log.info("CRC >>>")
+                            self.log.debug("<<< CRC")
+                            file_name_bytes, data_size_bytes = (data[:-2]).rstrip(self.header_pad).split(self.header_pad)
+                            file_name = bytes.decode(file_name_bytes)
+                            data_size = bytes.decode(data_size_bytes)
+                            self.log.debug("TASK: " + file_name + " " + data_size + "Bytes")
+                            self.rt.set_task_name(file_name)
+                            self.rt.set_task_size(int(data_size))
+                            file_stream = open(os.path.join(root_path, file_name), 'wb+')
+                            FIRST_PACKET_RECEIVED = True
                             sequence = (sequence + 1) % 0x100
-                            char = self.getc(1)
-                            continue
-                        else:
-                            file_size += len(packet_size)
-                            file_stream.write(data[-1:])
+
+                        # data packet
+                        # [data packet >>>]
+                        # [<<< ACK]
+                        elif not WAIT_FOR_END_PACKET:
+                            self.rt.inc_valid_received_packets()
+                            self.log.debug("Packet " + str(sequence) + " >>>")
+                            valid_data = data[:-2]
+                            # last data packet
+                            if self.rt.get_valid_received_packets() == self.rt.get_task_packets():
+                                valid_data = valid_data[:self.rt.get_last_valid_packet_size()]
+                                WAIT_FOR_EOT = True
+                            self.rt.add_valid_received_bytes(len(valid_data))
+                            file_stream.write(valid_data)
                             self.putc(ACK)
+                            self.log.debug("<<< ACK")
+
                             sequence = (sequence + 1) % 0x100
-                            char = self.getc(1)
-                            continue
 
-                while True:
-                    data = self.getc(1)
-                    if data is None:
-                        break
-                
-                self.putc(NAK)
-                char = self.getc(1)
-                continue
-
-
+                        # final packet
+                        # [<<< ACK]
+                        else:
+                            self.log.debug("Packet End >>>")
+                            self.putc(ACK)
+                            self.log.debug("<<< ACK")
+                            break
+        file_stream.close()
+        self.log.debug("Task Done!")
+        self.log.debug("File: " + self.rt.get_task_name())
+        self.log.debug("Size: " + str(self.rt.get_task_size()) + "Bytes")
+        self.log.debug("Packets: " + str(self.rt.get_valid_received_packets()))
+        return self.rt.get_valid_received_bytes()        
+                        
     # Header byte
-    def _make_send_header(self, packet_size, sequence):
+    def _make_edge_packet_header(self):
+        _bytes = [ord(SOH), 0, 0xff]
+        return bytearray(_bytes)
+
+    def _make_data_packet_header(self, packet_size, sequence):
         assert packet_size in (128, 1024), packet_size
         _bytes = []
         if packet_size == 128:
@@ -345,7 +389,11 @@ class YMODEM(object):
 
     # CRC algorithm: CCITT-0
     def calc_crc(self, data, crc=0):
-        for char in bytearray(data):
+        if isinstance(data, str):
+            ba = bytearray(data, 'utf-8')
+        else:
+            ba = bytearray(data)
+        for char in ba:
             crctbl_idx = ((crc >> 8) ^ char) & 0xff
             crc = ((crc << 8) ^ self.crctable[crctbl_idx]) & 0xffff
         return crc & 0xffff

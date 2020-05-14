@@ -9,10 +9,18 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 
 YMODEM Protocol: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM_CN.md)
 
+## YMODEM for Python到底能不能用
+如果想运行测试例子，请执行以下操作：
+1. 利用串口虚拟工具在本地生成可相互通信的COM1与COM2
+2. 在命令行中分别运行test_receiver.py与test_sender.py文件
+具体的传输过程如下图所示（左边为发送者，右边为接收者）：
+![cmd_test](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.png)
+![hash_result](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/hash_result.png)
+
 ## 如何使用YMODEM for Python
-1. 将ymodem.py放入protocol文件夹，将YMODEM类引入你的工程
+1. 在目标模块中引入YModem
 ```python
-from protocol.ymodem import YMODEM
+from YModem import YModem
 ```
 
 2. 定义必要的getc()与putc(),并创建YModem对象
@@ -23,61 +31,46 @@ def getc(size):
 def putc(data):
     return serial_io.write(data)
 
-tester = YMODEM(getc, putc)
+tester = YModem(getc, putc)
 ```
 
 3. 开始传输数据
 ```python
-tester.send(file_stream, file_name)
+tester.send_file(file_path)
 ```
 
 4. 开始接收数据
 ```python
-tester.recv(file_stream)
+tester.recv_file(root_path)
 ```
 
 ## YMODEM for Python API
 
 ### 创建modem对象
 ```python
-def __init__(self, getc, putc, mode='ymodem', header_pad=b'\x00', pad=b'\x1a')
+def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a')
 ```
-getc：自定义函数，YModem对象内部通过它获取size个数据（size为get的唯一参数，但是在协议内部固定为1） \
-putc: 自定义函数，YModem对象内部通过它发送size个数据
-mode: 传输模式，分ymodem、ymodem128，前者数据包的数据长度为1024，后者为128
+getc：自定义函数，YModem对象内部通过它获取size个byte的数据
+putc: 自定义函数，YModem对象内部通过它发送size个byte的数据
 
 ### 发送数据
 ```python
-def send(self, file_stream, file_name, retry=20, timeout=15, callback=None)
+def send_file(self, file_path, retry=20, callback=None)
 ```
-- file_stream: 文件数据流
-- file_name: 文件名
-- retry: 收发数据最大重试次数
-- timeout: 收发数据最大超时
-- callback: 传输过程中的回调，接收三个参数--数据包的总数，数据包发送成功数，数据包发送失败数
+- file_path: 待发送文件路径
+- retry: 最大重新发送次数
+- callback: 回调函数，由开发者自行实现，一般用来获取进度等信息
 
 ### 接收数据
 ```python
-def recv(self, file_stream, retry=20, timeout=15, delay=0.01)
+def recv_file(self, root_path, callback=None)
 ```
-- file_stream: 文件数据流
-- retry: 收发数据最大重试次数
-- timeout: 收发数据最大超时
-- delay: 重发字符C的延迟
+- root_path: 存储文件夹路径
+- callback: 回调函数，由开发者自行实现，一般用来获取进度信息
 
 ## 更新日志
-### v0.5.0 (2018/3/30 15:00 +00:00)
-- 项目初版上线
-
-### v0.7.0 (2018/4/3 11:15 +00:00)
-- 重写超时机制
-- 去除冗余信息
-- 编写测试用例
-
-### v0.8.0 (2018/4/4 15:06 +00:00)
-- 去除超时机制，采用旧有的重试机制
-- 增加接受数据的部分
-- 改写测试用例
+### v1.0.0 (2020/5/14 14:00 +00:00)
+- 简化了原版的YModem实现
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)

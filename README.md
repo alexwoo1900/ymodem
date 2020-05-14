@@ -10,10 +10,18 @@ README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 
 YMODEM Protocol: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM_CN.md)
 
+## Can YMODEM for Python work
+If you want to run the test sample, please do the following:
+1. use virtual serial port tool to generate COM1 and COM2 that can communicate
+2. run the test_receiver.py and test_sender.py on the command line
+The specific transmission process is shown in the following figure (sender on the left and receiver on the right)
+![cmd_test](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.png)
+![hash_result](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/hash_result.png)
+
 ## How to use YMODEM for Python
-1. Put ymodem.py to the folder named 'protocol' and then import main class to your project
+1. Import YModem in your target file
 ```python
-from protocol.ymodem import YMODEM
+from YModem import YModem
 ```
 
 2. Define your own get() and put() and create YMODEM object
@@ -24,61 +32,47 @@ def getc(size):
 def putc(data):
     return serial_io.write(data)
 
-tester = YMODEM(getc, putc)
+tester = YModem(getc, putc)
 ```
 
-3. Send file!
+3. Send file
 ```python
-tester.send(file_stream, file_name)
+tester.send_file(file_path)
 ```
 
-4. Recv file!
+4. Receive file
 ```python
-tester.recv(file_stream)
+tester.recv_file(root_path)
 ```
 
 ## YMODEM for Python API
 
 ### Create YMODEM object
 ```python
-def __init__(self, getc, putc, mode='ymodem', header_pad=b'\x00', pad=b'\x1a')
+def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a')
 ```
-get(): Custom function. Getting data bytes from this function in YModem implementation according to the parameter(size)
-put(): Custom function. Sending data bytes to this function in YModem implementation according to the parameter(size)
-mode: optional parameter, 'ymodem' to choose 1024 bytes packet for transmission and 'ymodem128' to choose 128 bytes
+get(): Custom function. Get size bytes of data from data source(size)
+put(): Custom function. Send size bytes to destination
+
 
 ### Send data
 ```python
-def send(self, file_stream, file_name, retry=20, timeout=15, callback=None)
+def send_file(self, file_path, retry=20, callback=None)
 ```
-- file_stream: file data stream
-- file_name: name of the file
-- retry: max time of retry for getc or putc
-- timeout: max second for getc or putc waiting
-- callback: callback in packet transfer, accepting 3 parameters: total_count, success_count and error_count
+- file_path: target file path
+- retry: max resend tries
+- callback: implemented by the developer
 
 ### Recv data
 ```python
-def recv(self, file_stream, retry=20, timeout=15, delay=0.01)
+def recv_file(self, root_path, callback=None)
 ```
-- file_stream: file data stream
-- retry: max time of retry for getc or putc
-- timeout: max second for getc or putc waiting
-- delay: max second waiting for sending next char 'C'
+- root_path: root path for storing the file
+- callback: implemented by the developer
 
 ## Change logs
-### v0.5.0 (2018/3/30 15:00 +00:00)
-- First edition goes live 
-
-### v0.7.0 (2018/4/3 11:15 +00:00)
-- rewrite timeout mechanism
-- remove unnecessary information
-- add testing for ymodem
-
-### v0.8.0 (2018/4/4 15:06 +00:00)
-- remove timeout mechanism and back to retry function
-- add recv entry
-- modify testing file
+### v1.0.0 (2020/5/14 14:00 +00:00)
+- Simplified the implementation of the original version of ymodem
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)
