@@ -50,8 +50,8 @@ tester.recv_file(root_path)
 ```python
 def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a')
 ```
-getc：自定义函数，YModem对象内部通过它获取size个byte的数据
-putc: 自定义函数，YModem对象内部通过它发送size个byte的数据
+- getc：自定义函数，YModem对象内部通过它获取size个byte的数据
+- putc: 自定义函数，YModem对象内部通过它发送size个byte的数据
 
 ### 发送数据
 ```python

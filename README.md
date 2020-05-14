@@ -51,8 +51,8 @@ tester.recv_file(root_path)
 ```python
 def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a')
 ```
-get(): Custom function. Get size bytes of data from data source(size)
-put(): Custom function. Send size bytes to destination
+- get: Custom function. Get size bytes of data from data source(size)
+- put: Custom function. Send size bytes to destination
 
 
 ### Send data
@@ -72,7 +72,7 @@ def recv_file(self, root_path, callback=None)
 
 ## Change logs
 ### v1.0.0 (2020/5/14 14:00 +00:00)
-- Simplified the implementation of the original version of ymodem
+- Simplified the implementation of the original version of YModem
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)
