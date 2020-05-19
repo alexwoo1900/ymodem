@@ -50,8 +50,8 @@ class YModem(object):
         self.log.debug("Size: " + str(file_sent) + "Bytes")
         self.log.debug("Packets: " + str(self.st.get_valid_sent_packets()))
         return file_sent
-    
-    def wait_for_next(self, ch):
+
+    def wait_for_next(self, ch): 
         cancel_count = 0
         while True:
             c = self.getc(1)
@@ -66,6 +66,7 @@ class YModem(object):
                         cancel_count += 1
                 else:
                     self.log.warn("Expected " + hex(ord(ch)) + ", but got " + hex(ord(c)))
+        return 0
                         
     def send(self, data_stream, data_name, data_size, retry=20, callback=None):
         packet_size = 1024

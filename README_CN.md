@@ -69,6 +69,11 @@ def recv_file(self, root_path, callback=None)
 - root_path: 存储文件夹路径
 - callback: 回调函数，由开发者自行实现，一般用来获取进度信息
 
+## 注意
+该项目是简单的YModem通讯实现，它不包含以下跟具体业务相关的代码：
+- 用于返回YModem内部数据的callback
+- 超时机制与CAN指令的发送，项目中使用的是阻塞代码
+
 ## 更新日志
 ### v1.0.0 (2020/5/14 14:00 +00:00)
 - 简化了原版的YModem实现

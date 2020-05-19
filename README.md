@@ -71,6 +71,11 @@ def recv_file(self, root_path, callback=None)
 - root_path: root path for storing the file
 - callback: implemented by the developer
 
+## Attention
+This project does not include the following code related to business logic:
+- the callback that processing the internal data of YModem
+- Timeout mechanism and CAN instruction sending
+
 ## Change logs
 ### v1.0.0 (2020/5/14 14:00 +00:00)
 - Simplified the implementation of the original version of YModem
