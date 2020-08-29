@@ -156,13 +156,13 @@ class YModem(object):
         # [<<< ACK]
         self.putc(EOT)
         self.log.debug(">>> EOT")
-        self.wait_for_next(NAK)
+        #self.wait_for_next(NAK)
         self.putc(EOT)
         self.log.debug(">>> EOT")
-        self.wait_for_next(ACK)
+        #self.wait_for_next(ACK)
 
         # [<<< CRC]
-        self.wait_for_next(CRC)
+        #self.wait_for_next(CRC)
         
         # [Final packet >>>]
         header = self._make_edge_packet_header()
@@ -173,7 +173,7 @@ class YModem(object):
         self.st.inc_sent_packets()
         self.log.debug("Packet End >>>")
 
-        self.wait_for_next(ACK)
+        #self.wait_for_next(ACK)
 
         return self.st.get_valid_sent_bytes()
 

@@ -7,7 +7,7 @@ from YModem import YModem
 
 if __name__ == '__main__':
     serial_io = serial.Serial()
-    serial_io.port = "COM1"
+    serial_io.port = "/dev/ttyUSB0"
     serial_io.baudrate = "115200"
     serial_io.parity = "N"
     serial_io.bytesize = 8
@@ -27,6 +27,6 @@ if __name__ == '__main__':
 
     sender = YModem(sender_getc, sender_putc)
     os.chdir(sys.path[0])
-    file_path = os.path.abspath('test_send_data/sample.stl')
+    file_path = os.path.abspath('/home/robo/trapv2/DN_TRAP_HWv2_CubeIDE/Binary/TrapV2.0.sfb')
     sent = sender.send_file(file_path)
     serial_io.close()
