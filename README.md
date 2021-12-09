@@ -1,6 +1,6 @@
 ![ymodem-logo](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem-logo.png)
 
-The project is based on XMODEM implementation written by tehmaze. 
+The YMODEM project is based on XMODEM implementation written by tehmaze. It is also compatible with XMODEM mode.
 
 [![Build Status](https://www.travis-ci.org/alexwoo1900/ymodem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/ymodem)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://opensource.org/licenses/MIT)
@@ -8,77 +8,82 @@ The project is based on XMODEM implementation written by tehmaze.
 
 README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
-YMODEM Protocol: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/YMODEM_CN.md)
 
 ## Can YMODEM for Python work
 If you want to run the test sample, please do the following:
 1. use virtual serial port tool to generate COM1 and COM2 that can communicate
-2. run the test_receiver.py and test_sender.py on the command line
+2. run the FileReceiver.py and FileSender.py on the command line
 
-The specific transmission process is shown in the following figure (sender on the left and receiver on the right)
-![cmd_test](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.png)
-![hash_result](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/hash_result.png)
+The specific transmission process is shown in the following figure:
+![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sr.png)
+![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
+![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
 ## How to use YMODEM for Python
-1. Import YModem in your target file
+1. Import MODEM module
 ```python
-from YModem import YModem
+from Modem import Modem
 ```
 
-2. Define your own get() and put() and create YMODEM object
+2. Define the reader and writer (or read() and write()), then create MODEM object
 ```python
-def getc(size):
+def sender_read(size, timeout=3):
+    serial_io.timeout = timeout
     return serial_io.read(size) or None
 
-def putc(data):
+def sender_write(data, timeout=3):
+    serial_io.writeTimeout = timeout
     return serial_io.write(data)
 
-tester = YModem(getc, putc)
+sender = Modem(sender_read, sender_write)
 ```
 
 3. Send file
 ```python
-tester.send_file(file_path)
+sender.send(stream, info=file_info)
 ```
 
 4. Receive file
 ```python
-tester.recv_file(root_path)
+receiver.recv(stream, info=file_info)
 ```
 
 ## YMODEM for Python API
 
-### Create YMODEM object
+### 创建MODEM对象
 ```python
-def __init__(self, getc, putc, header_pad=b'\x00', data_pad=b'\x1a')
+def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ```
-- get: Custom function. Get size bytes of data from data source(size)
-- put: Custom function. Send size bytes to destination
+- reader, reader(object) or read(function)
+- writer, writer(object) or write(function)
+- mode, support xmodem, xmodem1k, ymodem, ymodem1k(by default)
+- program, YMODEM of different program have different features
 
-
-### Send data
+### 发送数据
 ```python
-def send_file(self, file_path, retry=20, callback=None)
+def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=None):
 ```
-- file_path: target file path
-- retry: max resend tries
-- callback: implemented by the developer
+- stream, data stream
+- retry, max retry count
+- timeout, timeout of reader or writer in second
+- callback, callback function, it will receive 3 parameters: total_packets、success_count、error_count
+- info, file information dictory for receiver, properties: name, length, mtime, source
 
-### Recv data
+### 接收数据
 ```python
-def recv_file(self, root_path, callback=None)
+def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, quiet=0, callback=None, info=None)
 ```
-- root_path: root path for storing the file
-- callback: implemented by the developer
+- stream, data stream
+- crc_mode, checksum or crc mode
+- retry, max retry count
+- timeout, timeout of reader or writer in second
+- delay, delay in second
+- callback, callback function. it will receive 2 parameters: received_length, remaining_length
 
-## Attention
-This project does not include the following code related to business logic:
-- the callback that processing the internal data of YModem
-- Timeout mechanism and CAN instruction sending
-
-## Change logs
-### v1.0.0 (2020/5/14 14:00 +00:00)
-- Simplified the implementation of the original version of YModem
+## Changelog
+### v1.0.1 (2021/12/9 14:00 +00:00)
+- Added the full version implementation of ymodem
+- The simplified code has been moved to the legacy folder
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)
