@@ -53,31 +53,58 @@ receiver.recv(stream, info=file_info)
 ```python
 def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ```
-- reader 读对象或者读函数
-- writer 写对象或者写函数
-- mode 默认使用数据长度为1k字节的YMODEM模式
-- program YMODEM的标准（不同标准有不同特性）
+- reader： 读对象或者读函数。
+- writer： 写对象或者写函数。
+- mode： 默认使用数据长度为1k字节的YMODEM模式。
+- program： YMODEM的标准（不同标准有不同特性）。
 
 ### 发送数据
 ```python
 def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=None):
 ```
-- stream 文件（数据）流
-- retry 最大重传次数
-- timeout reader和writer的超时时间
-- callback 回调函数，接收三个有关发送进度的参数total_packets、success_count、error_count
-- info 文件信息字典，提供给接收者使用，成员包括name、length、mtime、source
+- stream： 文件（数据）流。
+- retry： 最大重传次数。
+- timeout： reader和writer的超时时间。
+- callback： 回调函数，参数见下表。
+- info： 文件信息字典。字段见下表。
+
+回调参数：
+参数（按顺序） | 描述
+-|-
+total packets | 预发送的包总数
+success packets | 发送成功的包数量
+failed packets | 发送失败的包数量
+
+文件信息属性：
+字段 | 描述
+-|- 
+name | 文件名称
+length | 文件大小（字节）
+mtime | 文件修改时间 (GMT)
+source | 文件原始所属的系统
 
 ### 接收数据
 ```python
 def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, quiet=0, callback=None, info=None)
 ```
-- stream 文件（数据）流
-- crc_mode 由接收者指定的校验模式
-- retry 最大重传次数
-- timeout reader和writer的超时时间
-- delay 延迟时间
-- callback 回调函数，接收两个有关发送进度的参数received_length, remaining_length
+- stream： 文件（数据）流。
+- crc_mode： 由接收者指定的校验模式。
+- retry： 最大重传次数。
+- timeout： reader和writer的超时时间。
+- delay： 延迟时间。
+- callback： 回调函数，参数见下表。
+- info： 文件信息字典，字段见下表。
+
+回调参数：
+参数（按顺序） | 描述
+-|-
+received length | 已接收的文件字节
+remaining length | 剩余未接收的文件字节
+
+文件信息属性：
+字段 | 描述
+-|- 
+save_path | 保存接收文件的文件夹路径
 
 ## 更新日志
 ### v1.0.1 (2021/12/9 14:00 +00:00)

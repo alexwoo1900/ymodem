@@ -63,22 +63,50 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ```python
 def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=None):
 ```
-- stream, data stream
-- retry, max retry count
-- timeout, timeout of reader or writer in second
-- callback, callback function, it will receive 3 parameters: total_packets、success_count、error_count
-- info, file information dictory for receiver, properties: name, length, mtime, source
+- stream, data stream.
+- retry, max retry count.
+- timeout, timeout of reader or writer in second.
+- callback, callback function. see below.
+- info, file information dictionary. see below.
+
+callback parameters:
+Parameter | Description
+-|-
+total packets | number of packets plan to send
+success packets | number of packets successfully sent
+failed packets | number of packets failed to send
+
+info properties:
+Field | Description
+-|- 
+name | file name
+length | file length
+mtime | file modification date (GMT)
+source | operation system the file original from
 
 ### Receive file (stream)
 ```python
 def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, quiet=0, callback=None, info=None)
 ```
-- stream, data stream
-- crc_mode, checksum or crc mode
-- retry, max retry count
-- timeout, timeout of reader or writer in second
-- delay, delay in second
-- callback, callback function. it will receive 2 parameters: received_length, remaining_length
+- stream, data stream.
+- crc_mode, checksum or crc mode.
+- retry, max retry count.
+- timeout, timeout of reader or writer in second.
+- delay, delay in second.
+- callback, callback function. see below.
+- info, file information dictionary. see below.
+
+callback parameters:
+Parameter | Description
+-|-
+received length | received file bytes
+remaining length | remaining file bytes
+
+info properties:
+Field | Description
+-|- 
+save_path | folder path where the file are saved
+
 
 ## Changelog
 ### v1.0.1 (2021/12/9 14:00 +00:00)
