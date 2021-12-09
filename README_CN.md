@@ -11,12 +11,12 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 ## YMODEM for Python到底能不能用
 如果想运行测试例子，请执行以下操作：
 1. 利用串口虚拟工具在本地生成可相互通信的COM1与COM2
-2. 在命令行中分别运行test\FileReceiver.py与test\FileSender.py文件
+2. 在命令行中分别运行FileReceiver.py与FileSender.py文件
 
 具体的传输过程如下图所示：
 ![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sr.png)
-![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.png)
-![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.png)
+![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
+![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
 ## 如何使用YMODEM for Python
 1. 引入MODEM模块

@@ -1,8 +1,6 @@
 # YMODEM Batch Transmission Protocol
 YMODEM BatchTransmission Protocol(YMODEM Protocol) is based on XMODEM-1K Protocol and added batch transmisson feature.
 
-There are serveral common versions about YMODEM implementation, including complete version which with file size(Hyper Terminal) and no-file-size one(SecureCRT). But it doesnt matter and the cores are the same.
-
 ## Symbol
 In the following introduction, we will use some symbols to define special hex data.
 
