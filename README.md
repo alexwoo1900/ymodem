@@ -50,7 +50,7 @@ receiver.recv(stream, info=file_info)
 
 ## YMODEM for Python API
 
-### 创建MODEM对象
+### Create MODEM Object
 ```python
 def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ```
@@ -59,7 +59,7 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 - mode, support xmodem, xmodem1k, ymodem, ymodem1k(by default)
 - program, YMODEM of different program have different features
 
-### 发送数据
+### Send file (stream)
 ```python
 def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=None):
 ```
@@ -69,7 +69,7 @@ def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=No
 - callback, callback function, it will receive 3 parameters: total_packets、success_count、error_count
 - info, file information dictory for receiver, properties: name, length, mtime, source
 
-### 接收数据
+### Receive file (stream)
 ```python
 def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, quiet=0, callback=None, info=None)
 ```
