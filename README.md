@@ -15,8 +15,12 @@ If you want to run the test sample, please do the following:
 2. run the FileReceiver.py and FileSender.py on the command line
 
 The specific transmission process is shown in the following figure:
-![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sr.png)
+![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.gif)
+
+Interact with SecureCRT as sender
 ![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
+
+Interact with SecureCRT as Finder
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
 ## How to use YMODEM for Python
@@ -109,9 +113,8 @@ save_path | folder path where the file are saved
 
 
 ## Changelog
-### v1.0.1 (2021/12/9 14:00 +00:00)
-- Added the full version implementation of ymodem
-- The simplified code has been moved to the legacy folder
+### v1.1 (2022/3/9 14:00 +00:00)
+- Fixed EOT processing
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)

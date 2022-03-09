@@ -14,8 +14,12 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 2. 在命令行中分别运行FileReceiver.py与FileSender.py文件
 
 具体的传输过程如下图所示：
-![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sr.png)
+![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.gif)
+
+作为发送者与SecureCRT交互
 ![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
+
+作为接收者与SecureCRT交互
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
 ## 如何使用YMODEM for Python
@@ -107,9 +111,8 @@ remaining length | 剩余未接收的文件字节
 save_path | 保存接收文件的文件夹路径
 
 ## 更新日志
-### v1.0.1 (2021/12/9 14:00 +00:00)
-- 增加了YMODEM的完整版实现
-- 简化版的代码已移至Legacy文件夹下
+### v1.1 (2022/3/9 14:00 +00:00)
+- 修复了EOT的处理流程
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)
