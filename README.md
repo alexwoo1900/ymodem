@@ -9,13 +9,18 @@ The YMODEM project is based on XMODEM implementation written by tehmaze. It is a
 README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
 
-## Can YMODEM for Python work
+## YMODEM for Python Demo
+
+### Test the sending and receiving functions
+
 If you want to run the test sample, please do the following:
 1. use virtual serial port tool to generate COM1 and COM2 that can communicate
 2. run the FileReceiver.py and FileSender.py on the command line
 
 The specific transmission process is shown in the following figure:
 ![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.gif)
+
+### Interact with SecureCRT
 
 Interact with SecureCRT as sender
 ![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
@@ -24,12 +29,15 @@ Interact with SecureCRT as Finder
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
 ## How to use YMODEM for Python
+
 1. Import MODEM module
+
 ```python
 from Modem import Modem
 ```
 
 2. Define the reader and writer (or read() and write()), then create MODEM object
+
 ```python
 def sender_read(size, timeout=3):
     serial_io.timeout = timeout
@@ -43,11 +51,13 @@ sender = Modem(sender_read, sender_write)
 ```
 
 3. Send file
+
 ```python
 sender.send(stream, info=file_info)
 ```
 
 4. Receive file
+
 ```python
 receiver.recv(stream, info=file_info)
 ```
@@ -64,8 +74,9 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 - program, YMODEM of different program have different features
 
 ### Send file (stream)
+
 ```python
-def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=None):
+def send(self, stream, retry=10, timeout=10, callback=None, info=None):
 ```
 - stream, data stream.
 - retry, max retry count.
@@ -89,8 +100,9 @@ mtime | file modification date (GMT)
 source | operation system the file original from
 
 ### Receive file (stream)
+
 ```python
-def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, quiet=0, callback=None, info=None)
+def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, callback=None, info=None)
 ```
 - stream, data stream.
 - crc_mode, checksum or crc mode.
@@ -113,8 +125,8 @@ save_path | folder path where the file are saved
 
 
 ## Changelog
-### v1.1 (2022/3/9 14:00 +00:00)
-- Fixed EOT processing
+### v1.2 (2022/8/10 14:00 +00:00)
+- Fixed receiver bug
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)

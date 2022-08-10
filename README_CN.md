@@ -8,13 +8,18 @@
 README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
 
-## YMODEM for Python到底能不能用
+## YMODEM for Python功能演示
+
+### 单独测试发送与接收功能 
+
 如果想运行测试例子，请执行以下操作：
 1. 利用串口虚拟工具在本地生成可相互通信的COM1与COM2
 2. 在命令行中分别运行FileReceiver.py与FileSender.py文件
 
 具体的传输过程如下图所示：
 ![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.gif)
+
+### 与SecureCRT交互
 
 作为发送者与SecureCRT交互
 ![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
@@ -23,6 +28,7 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
 ## 如何使用YMODEM for Python
+
 1. 引入MODEM模块
 ```python
 from Modem import Modem
@@ -64,7 +70,7 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 
 ### 发送数据
 ```python
-def send(self, stream, retry=10, timeout=10, quiet=False, callback=None, info=None):
+def send(self, stream, retry=10, timeout=10, callback=None, info=None):
 ```
 - stream： 文件（数据）流。
 - retry： 最大重传次数。
@@ -89,7 +95,7 @@ source | 文件原始所属的系统
 
 ### 接收数据
 ```python
-def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, quiet=0, callback=None, info=None)
+def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, callback=None, info=None)
 ```
 - stream： 文件（数据）流。
 - crc_mode： 由接收者指定的校验模式。
@@ -111,8 +117,8 @@ remaining length | 剩余未接收的文件字节
 save_path | 保存接收文件的文件夹路径
 
 ## 更新日志
-### v1.1 (2022/3/9 14:00 +00:00)
-- 修复了EOT的处理流程
+### v1.2 (2022/8/10 14:00 +00:00)
+- 修复了接收函数的bug
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)
