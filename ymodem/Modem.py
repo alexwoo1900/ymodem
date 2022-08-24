@@ -4,7 +4,7 @@ import time
 import logging
 import platform
 
-from Protocol import Protocol
+from .Protocol import Protocol
 
 logging.basicConfig(level = logging.DEBUG, format = '%(message)s')
 
