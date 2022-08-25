@@ -1,7 +1,7 @@
 import os
 import sys
 import serial
-from Modem import Modem
+from ymodem.Modem import Modem
 
 if __name__ == '__main__':
     serial_io = serial.Serial()
