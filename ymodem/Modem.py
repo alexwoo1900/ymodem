@@ -430,6 +430,10 @@ class Modem(Protocol):
                         if valid:
                             data = data.lstrip(b"\x00")
                             self._recv_file_name = bytes.decode(data.split(b"\x00")[0], "utf-8")
+                            if not self._recv_file_name:
+                                self.logger.debug("[Receiver]: No more files - End of batch receive")
+                                self.writer.write(ACK)
+                                return None
                             self.logger.debug("[Receiver]: File - {}".format(self._recv_file_name))
 
                             try:
@@ -437,7 +441,7 @@ class Modem(Protocol):
                             except IOError as e:
                                 stream.close()
                                 self.logger.error("[Receiver]: Error, cannot open save path")
-                                return
+                                return None
                             data = bytes.decode(data.split(b"\x00")[1], "utf-8")
 
                             if self.program_features & USE_LENGTH_FIELD:
@@ -544,14 +548,10 @@ class Modem(Protocol):
                         self.logger.debug("[Receiver]: Set 1024 bytes for packet_size")
                     break
                 elif char == EOT:
-                    if cancel:
-                        self.writer.write(ACK)
-                        self.logger.info("[Receiver]: Transmission finished (%d bytes)", income_size)
-                        return income_size
-                    else:
-                        cancel = 1
-                        self.writer.write(NAK)
-                        self.logger.debug("[Receiver]: Ready for transmission cancellation (EOT) at data block {} (seq {})".format(success_count, sequence))
+                    self.writer.write(ACK)
+                    self.logger.debug("[Receiver]: Transmission finished (EOT) at data block {} (seq {})".format(success_count, sequence))
+                    self.logger.info("[Receiver]: Transmission finished (%d bytes)", income_size)
+                    return income_size
                 elif char == CAN:
                     if cancel:
                         self.logger.info("[Receiver]: Transmission cancelled (CAN) at data block {} (seq {})".format(success_count, sequence))

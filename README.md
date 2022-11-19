@@ -47,19 +47,27 @@ def sender_write(data, timeout=3):
     serial_io.writeTimeout = timeout
     return serial_io.write(data)
 
-sender = Modem(sender_read, sender_write)
+ymodem = Modem(sender_read, sender_write)
 ```
 
 3. Send file
 
 ```python
-sender.send(stream, info=file_info)
+ymodem.send(stream, info=file_info)
 ```
 
-4. Receive file
+4. Receive single file
 
 ```python
-receiver.recv(stream, info=file_info)
+received = ymodem.recv(stream=None, info=file_info)
+```
+
+5. Receive multiple files in batch mode by calling `recv()` until it returns `None`
+
+```python
+received = 0
+while received != None:
+    received = ymodem.recv(stream=None, info=file_info)
 ```
 
 ## YMODEM for Python API
@@ -76,7 +84,7 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ### Send file (stream)
 
 ```python
-def send(self, stream, retry=10, timeout=10, callback=None, info=None):
+def send(self, stream, retry=10, timeout=10, callback=None, info=None)
 ```
 - stream, data stream.
 - retry, max retry count.
@@ -123,6 +131,10 @@ Field | Description
 -|- 
 save_path | folder path where the file are saved
 
+return value:
+
+- Size of received file in bytes if successful
+- `None` otherwise
 
 ## Changelog
 ### v1.2 (2022/8/10 14:00 +00:00)

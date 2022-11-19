@@ -31,6 +31,8 @@ if __name__ == '__main__':
     file_info = {
         "save_path"    :   os.path.abspath("remote")
     }
-    received = receiver.recv(stream=None, info=file_info)
+    received = 0
+    while received != None:
+        received = receiver.recv(stream=None, info=file_info)
 
     serial_io.close()
