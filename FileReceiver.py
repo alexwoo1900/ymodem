@@ -28,9 +28,8 @@ if __name__ == '__main__':
     receiver = Modem(receiver_read, receiver_write)
     os.chdir(sys.path[0])
 
-    file_info = {
-        "save_path"    :   os.path.abspath("remote")
-    }
-    received = receiver.recv(stream=None, info=file_info)
+    folder_path = os.path.abspath("remote")
+
+    received = receiver.recv(folder_path)
 
     serial_io.close()
