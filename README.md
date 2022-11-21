@@ -53,21 +53,13 @@ ymodem = Modem(sender_read, sender_write)
 3. Send file
 
 ```python
-ymodem.send(stream, info=file_info)
+sender.send([file_path1, file_path2, file_path3 ...])
 ```
 
-4. Receive single file
+4. Receive file
 
 ```python
-received = ymodem.recv(stream=None, info=file_info)
-```
-
-5. Receive multiple files in batch mode by calling `recv()` until it returns `None`
-
-```python
-received = 0
-while received != None:
-    received = ymodem.recv(stream=None, info=file_info)
+receiver.recv(folder_path)
 ```
 
 ## YMODEM for Python API
@@ -81,64 +73,50 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 - mode, support xmodem, xmodem1k, ymodem, ymodem1k(by default)
 - program, YMODEM of different program have different features
 
-### Send file (stream)
+### Send file
 
 ```python
-def send(self, stream, retry=10, timeout=10, callback=None, info=None)
+def send(self, file_paths, retry=10, timeout=10, callback=None)
 ```
-- stream, data stream.
-- retry, max retry count.
-- timeout, timeout of reader or writer in second.
-- callback, callback function. see below.
-- info, file information dictionary. see below.
+- file_paths: file path list.
+- retry: max retry count.
+- timeout: timeout of reader or writer in second.
+- callback: callback function. see below.
 
 callback parameters:
 Parameter | Description
 -|-
+task index | index of current task
+task (file) name | name of the file
 total packets | number of packets plan to send
 success packets | number of packets successfully sent
 failed packets | number of packets failed to send
 
-info properties:
-Field | Description
--|- 
-name | file name
-length | file length
-mtime | file modification date (GMT)
-source | operation system the file original from
-
-### Receive file (stream)
+### Receive file
 
 ```python
-def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, callback=None, info=None)
+def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None)
 ```
-- stream, data stream.
-- crc_mode, checksum or crc mode.
-- retry, max retry count.
-- timeout, timeout of reader or writer in second.
-- delay, delay in second.
-- callback, callback function. see below.
-- info, file information dictionary. see below.
+- folder_path: folder path for saving.
+- crc_mode: checksum or crc mode.
+- retry: max retry count.
+- timeout: timeout of reader or writer in second.
+- delay: delay in second.
+- callback: callback function. see below.
 
 callback parameters:
 Parameter | Description
 -|-
-received length | received file bytes
-remaining length | remaining file bytes
-
-info properties:
-Field | Description
--|- 
-save_path | folder path where the file are saved
-
-return value:
-
-- Size of received file in bytes if successful
-- `None` otherwise
+task index | index of current task
+task (file) name | name of the file
+total packets | number of packets plan to send
+success packets | number of packets successfully sent
+failed packets | number of packets failed to send
 
 ## Changelog
-### v1.2 (2022/8/10 14:00 +00:00)
-- Fixed receiver bug
+### v1.3 (2022/11/21 14:00 +00:00)
+- Support batch transmission
+- Simplify the API
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)

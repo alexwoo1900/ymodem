@@ -49,12 +49,12 @@ sender = Modem(sender_read, sender_write)
 
 3. 开始传输数据
 ```python
-sender.send(stream, info=file_info)
+sender.send([file_path1, file_path2, file_path3 ...])
 ```
 
 4. 开始接收数据
 ```python
-receiver.recv(stream, info=file_info)
+receiver.recv(folder_path)
 ```
 
 ## YMODEM for Python API
@@ -70,55 +70,47 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 
 ### 发送数据
 ```python
-def send(self, stream, retry=10, timeout=10, callback=None, info=None):
+def send(self, file_paths, retry=10, timeout=10, callback=None):
 ```
-- stream： 文件（数据）流。
+- file_paths： 文件路径列表。
 - retry： 最大重传次数。
 - timeout： reader和writer的超时时间。
 - callback： 回调函数，参数见下表。
-- info： 文件信息字典。字段见下表。
 
 回调参数：
 参数（按顺序） | 描述
 -|-
-total packets | 预发送的包总数
-success packets | 发送成功的包数量
-failed packets | 发送失败的包数量
+task index | 任务索引
+task (file) name | 任务（文件）名称
+total packets | 总包数
+success packets | 成功包数
+failed packets | 失败包数
 
-文件信息属性：
-字段 | 描述
--|- 
-name | 文件名称
-length | 文件大小（字节）
-mtime | 文件修改时间 (GMT)
-source | 文件原始所属的系统
 
 ### 接收数据
 ```python
-def recv(self, stream, crc_mode=1, retry=10, timeout=10, delay=1, callback=None, info=None)
+def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None)
 ```
-- stream： 文件（数据）流。
+- folder_path： 保存文件夹路径。
 - crc_mode： 由接收者指定的校验模式。
 - retry： 最大重传次数。
 - timeout： reader和writer的超时时间。
 - delay： 延迟时间。
 - callback： 回调函数，参数见下表。
-- info： 文件信息字典，字段见下表。
 
 回调参数：
 参数（按顺序） | 描述
 -|-
-received length | 已接收的文件字节
-remaining length | 剩余未接收的文件字节
-
-文件信息属性：
-字段 | 描述
--|- 
-save_path | 保存接收文件的文件夹路径
+task index | 任务索引
+task (file) name | 任务（文件）名称
+total packets | 总包数
+success packets | 成功包数
+failed packets | 失败包数
 
 ## 更新日志
-### v1.2 (2022/8/10 14:00 +00:00)
-- 修复了接收函数的bug
+### v1.3 (2022/11/21 14:00 +00:00)
+- 支持多文件传输
+- 简化函数接口
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)
