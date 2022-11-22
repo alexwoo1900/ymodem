@@ -9,7 +9,7 @@ The YMODEM project is based on XMODEM implementation written by tehmaze. It is a
 README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
 
-## YMODEM for Python Demo
+## Demo
 
 ### Test the sending and receiving functions
 
@@ -28,17 +28,13 @@ Interact with SecureCRT as sender
 Interact with SecureCRT as Finder
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
-## How to use YMODEM for Python
+## Quick start
 
-1. Import MODEM module
 
 ```python
 from Modem import Modem
-```
 
-2. Define the reader and writer (or read() and write()), then create MODEM object
-
-```python
+# Sender
 def sender_read(size, timeout=3):
     serial_io.timeout = timeout
     return serial_io.read(size) or None
@@ -47,24 +43,28 @@ def sender_write(data, timeout=3):
     serial_io.writeTimeout = timeout
     return serial_io.write(data)
 
-ymodem = Modem(sender_read, sender_write)
-```
+sender = Modem(sender_read, sender_write)
 
-3. Send file
-
-```python
 sender.send([file_path1, file_path2, file_path3 ...])
-```
 
-4. Receive file
+# Receiver
+def receiver_read(size, timeout=3):
+    serial_io.timeout = timeout
+    return serial_io.read(size) or None
 
-```python
+def receiver_write(data, timeout=3):
+    serial_io.writeTimeout = timeout
+    return serial_io.write(data)
+
+receiver = Modem(receiver_read, receiver_write)
+
 receiver.recv(folder_path)
 ```
 
-## YMODEM for Python API
+## API
 
 ### Create MODEM Object
+
 ```python
 def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ```
@@ -73,7 +73,7 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 - mode, support xmodem, xmodem1k, ymodem, ymodem1k(by default)
 - program, YMODEM of different program have different features
 
-### Send file
+### Send files
 
 ```python
 def send(self, file_paths, retry=10, timeout=10, callback=None)
@@ -84,6 +84,7 @@ def send(self, file_paths, retry=10, timeout=10, callback=None)
 - callback: callback function. see below.
 
 callback parameters:
+
 Parameter | Description
 -|-
 task index | index of current task
@@ -92,11 +93,12 @@ total packets | number of packets plan to send
 success packets | number of packets successfully sent
 failed packets | number of packets failed to send
 
-### Receive file
+### Receive files
 
 ```python
 def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None)
 ```
+
 - folder_path: folder path for saving.
 - crc_mode: checksum or crc mode.
 - retry: max retry count.
@@ -105,6 +107,7 @@ def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=
 - callback: callback function. see below.
 
 callback parameters:
+
 Parameter | Description
 -|-
 task index | index of current task
@@ -115,6 +118,7 @@ failed packets | number of packets failed to send
 
 ## Changelog
 ### v1.3 (2022/11/21 14:00 +00:00)
+
 - Support batch transmission
 - Simplify the API
 

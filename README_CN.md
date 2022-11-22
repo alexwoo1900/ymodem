@@ -8,7 +8,7 @@
 README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
 
-## YMODEM for Python功能演示
+## 功能演示
 
 ### 单独测试发送与接收功能 
 
@@ -27,15 +27,12 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 作为接收者与SecureCRT交互
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
 
-## 如何使用YMODEM for Python
+## 快速上手
 
-1. 引入MODEM模块
 ```python
 from Modem import Modem
-```
 
-2. 定义必要的reader与writer（或read与write函数），并以此创建Modem对象
-```python
+# Sender
 def sender_read(size, timeout=3):
     serial_io.timeout = timeout
     return serial_io.read(size) or None
@@ -45,21 +42,27 @@ def sender_write(data, timeout=3):
     return serial_io.write(data)
 
 sender = Modem(sender_read, sender_write)
-```
 
-3. 开始传输数据
-```python
 sender.send([file_path1, file_path2, file_path3 ...])
-```
 
-4. 开始接收数据
-```python
+# Receiver
+def receiver_read(size, timeout=3):
+    serial_io.timeout = timeout
+    return serial_io.read(size) or None
+
+def receiver_write(data, timeout=3):
+    serial_io.writeTimeout = timeout
+    return serial_io.write(data)
+
+receiver = Modem(receiver_read, receiver_write)
+
 receiver.recv(folder_path)
 ```
 
-## YMODEM for Python API
+## API
 
 ### 创建MODEM对象
+
 ```python
 def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 ```
@@ -69,6 +72,7 @@ def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
 - program： YMODEM的标准（不同标准有不同特性）。
 
 ### 发送数据
+
 ```python
 def send(self, file_paths, retry=10, timeout=10, callback=None):
 ```
@@ -78,6 +82,7 @@ def send(self, file_paths, retry=10, timeout=10, callback=None):
 - callback： 回调函数，参数见下表。
 
 回调参数：
+
 参数（按顺序） | 描述
 -|-
 task index | 任务索引
@@ -88,6 +93,7 @@ failed packets | 失败包数
 
 
 ### 接收数据
+
 ```python
 def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None)
 ```
@@ -99,6 +105,7 @@ def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=
 - callback： 回调函数，参数见下表。
 
 回调参数：
+
 参数（按顺序） | 描述
 -|-
 task index | 任务索引
@@ -109,6 +116,7 @@ failed packets | 失败包数
 
 ## 更新日志
 ### v1.3 (2022/11/21 14:00 +00:00)
+
 - 支持多文件传输
 - 简化函数接口
 
