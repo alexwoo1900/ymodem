@@ -74,7 +74,7 @@ class Modem(Protocol):
                 ymodem1k  = (128, 1024)[(self.program_features & ALLOW_1K_PACKET) != 0],
             )[self.mode]
         except KeyError:
-            raise ValueError("Invalid mode specified: {self}".format(self.mode))
+            raise ValueError("Invalid mode specified: {}.".format(self.mode))
 
         
         tasks = []
@@ -94,19 +94,14 @@ class Modem(Protocol):
             try:
                 stream = open(task["path"], 'rb')
             except IOError as e:
-                self.abort(timeout=timeout)
-                stream.close()
-                self.logger.error("[Sender]: Cannot open the file: %s", task)
+                self.logger.error("[Sender]: Cannot open the file: %s.", task)
                 return False
-
-            self.logger.info("[Sender]: Start communication.")
 
             if self.mode.startswith("ymodem"):
 
                 '''
                 Info packet
                 '''
-                self.logger.debug('[Sender]: Waiting the mode request...')
 
                 error_count = 0
                 crc_mode = 0
@@ -118,35 +113,31 @@ class Modem(Protocol):
                     if char:
                         if char == NAK:
                             crc_mode = 0
-                            self.logger.debug("[Sender]: Received checksum request (NAK)")
+                            self.logger.debug("[Sender]: Received checksum request (NAK).")
                             break
                         elif char == CRC:
                             crc_mode = 1
-                            self.logger.debug("[Sender]: Received CRC request (C/CRC)")
+                            self.logger.debug("[Sender]: Received CRC request (C/CRC).")
                             break
                         elif char == CAN:
                             if cancel == 1:
-                                self.logger.info("[Sender]: Transmission cancelled (CAN)")
+                                self.logger.warn("[Sender]: Cancel transfer (CAN).")
                                 return False
                             else:
                                 cancel = 1
-                                self.logger.debug("[Sender]: Ready for transmission cancellation (CAN)")
-                        elif char == EOT:
-                            self.logger.info("[Sender]: Transmission cancelled (EOT)")
-                            return False
+                                self.logger.warn("[Sender]: Ready to cancel transfer (CAN).")
                         else:
-                            self.logger.error("[Sender]: Expected NAK, CRC, EOT or CAN but got %r", char)
+                            self.logger.warn("[Sender]: Expected NAK, CRC, EOT or CAN but got %r.", char)
                     else:
-                        self.logger.debug("[Sender]: No valid data was read")
+                        self.logger.debug("[Sender]: No valid data was read.")
 
                     error_count += 1
                     if error_count > retry:
-                        self.logger.error("[Sender]: Error count reached {}, aborting...".format(retry))
                         self.abort(timeout=timeout)
+                        if stream:
+                            stream.close()
+                        self.logger.error("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
                         return False
-
-                
-                self.logger.debug("[Sender]: Preparing info packet")
 
                 header = self._make_send_header(packet_size, 0)
 
@@ -196,17 +187,18 @@ class Modem(Protocol):
                         error_count = 0
                         break
                     else:
-                        self.logger.error("[Sender]: Expected ACK but got %r for info packet", char)
+                        self.logger.warn("[Sender]: Expected ACK but got %r for info packet.", char)
                         error_count += 1
                         if error_count > retry:
-                            self.logger.error("[Sender]: NAK received {} times, aborting...".format(error_count))
                             self.abort(timeout=timeout)
+                            if stream:
+                                stream.close()
+                            self.logger.error("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
                             return False
 
             '''
             Data packet
             '''
-            self.logger.debug("[Sender]: Waiting the mode request...")
 
             error_count = 0
             crc_mode = 0
@@ -217,29 +209,28 @@ class Modem(Protocol):
                 if char:
                     if char == NAK:
                         crc_mode = 0
-                        self.logger.debug("[Sender]: Received checksum request (NAK)")
+                        self.logger.debug("[Sender]: Received checksum request (NAK).")
                         break
                     elif char == CRC:
                         crc_mode = 1
-                        self.logger.debug("[Sender]: Received CRC request (C/CRC)")
+                        self.logger.debug("[Sender]: Received CRC request (C/CRC).")
                         break
                     elif char == CAN:
                         if cancel:
-                            self.logger.info("[Sender]: Transmission cancelled (CAN)")
+                            self.logger.warn("[Sender]: Cancel transfer (CAN).")
                             return False
                         else:
                             cancel = 1
-                            self.logger.debug("[Sender]: Ready for transmission cancellation (CAN)")
-                    elif char == EOT:
-                        self.logger.info("[Sender]: Transmission cancelled (EOT)")
-                        return False
+                            self.logger.warn("[Sender]: Ready to cancel transfer (CAN).")
                     else:
-                        self.logger.error("[Sender]: Expected NAK, CRC, EOT or CAN but got %r", char)
+                        self.logger.warn("[Sender]: Expected NAK, CRC, EOT or CAN but got %r.", char)
 
                 error_count += 1
                 if error_count > retry:
-                    self.logger.info("[Sender]: Error count reached {}, aborting...".format(retry))
                     self.abort(timeout=timeout)
+                    if stream:
+                        stream.close()
+                    self.logger.error("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
                     return False
 
             total_packet_count = math.ceil(task["length"] / packet_size)
@@ -260,7 +251,7 @@ class Modem(Protocol):
                 while True:
                     # Blocking may occur here, the writer needs to have a timeout mechanism
                     self.writer.write(header + data + checksum)
-                    self.logger.debug("[Sender]: Packet {} (Seq {}) sent".format(success_packet_count, sequence))
+                    self.logger.debug("[Sender]: Packet {} (Seq {}) sent.".format(success_packet_count, sequence))
 
                     # Blocking may occur here, the reader needs to have a timeout mechanism
                     char = self.reader.read(1, timeout)
@@ -271,13 +262,15 @@ class Modem(Protocol):
                         error_packet_count = 0
                         break
                     else:
-                        self.logger.error('[Sender]: Expected ACK but got %r for packet %d', char, sequence)
+                        self.logger.warn('[Sender]: Expected ACK but got %r for packet %d.', char, sequence)
                         error_packet_count += 1
                         if callable(callback):
                             callback(task_index, task["name"], total_packet_count, success_packet_count, error_packet_count)
                         if error_packet_count > retry:
-                            self.logger.error("[Sender]: NAK received {} times, aborting...".format(error_packet_count))
                             self.abort(timeout=timeout)
+                            if stream:
+                                stream.close()
+                            self.logger.error("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
                             return False
 
                 sequence = (sequence + 1) % 0x100
@@ -288,24 +281,29 @@ class Modem(Protocol):
             EOT 
             '''
             self.writer.write(EOT)
-            self.logger.debug("[Sender]: EOT sent and awaiting ACK")
+            self.logger.debug("[Sender]: EOT sent and awaiting ACK.")
 
             char = self.reader.read(1, timeout)
             if char != ACK:
                 self.writer.write(EOT)
-                self.logger.debug("[Sender]: EOT resent and awaiting ACK")
+                self.logger.debug("[Sender]: EOT resent and awaiting ACK.")
 
                 while True:
                     char = self.reader.read(1, timeout)
                     if char == ACK:
                         break
                     else:
-                        self.logger.error("[Sender]: Expected ACK but got %r", char)
+                        self.logger.warn("[Sender]: Expected ACK but got %r.", char)
                         error_count += 1
                         if error_count > retry:
-                            self.logger.warning("[Sender]: EOT was not ACKd, aborting transfer...")
                             self.abort(timeout=timeout)
+                            if stream:
+                                stream.close()
+                            self.logger.error("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
                             return False
+
+        if stream:
+            stream.close()
 
         '''
         batch end packet
@@ -314,8 +312,11 @@ class Modem(Protocol):
         data = bytearray().ljust(packet_size, b"\x00")
         checksum = self._make_send_checksum(crc_mode, data)
         self.writer.write(header + data + checksum)
+        self.logger.debug("[Sender]: Batch end packet sent.")
 
-        self.logger.info("[Sender]: All tasks completed successfully.")
+        self.logger.info("[Sender]: Done.")
+
+        return True
 
 
     def _make_send_header(self, packet_size, sequence):
@@ -344,6 +345,15 @@ class Modem(Protocol):
         task_index = -1
 
         while True:
+
+            task = {
+                "name": "",
+                "total_length": 0,
+                "received_length": 0,
+                "mtime": 0,
+                "mode": 0,
+                "sn": 0
+            }
             
             '''
             Parse info packet
@@ -356,37 +366,37 @@ class Modem(Protocol):
                 while True:
                     if error_count >= retry:
                         self.abort(timeout=timeout)
-                        self.logger.info("[Receiver]: Error count reached to {}, aborting...".format(retry))
+                        self.logger.error("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
                         return False
                     elif crc_mode and error_count < (retry // 2):
                         if not self.writer.write(CRC):
                             time.sleep(delay)
                             error_count += 1
-                            self.logger.debug("[Receiver]: Write failed, sleep for {}".format(delay))
+                            self.logger.warn("[Receiver]: Write failed, sleep for {}s.".format(delay))
                     else:
                         crc_mode = 0
                         if not self.writer.write(NAK):
                             time.sleep(delay)
                             error_count += 1
-                            self.logger.debug("[Receiver]: Write failed, sleep for {}".format(delay))
+                            self.logger.warn("[Receiver]: Write failed, sleep for {}s".format(delay))
 
                     char = self.reader.read(1, timeout=3)
                     if char is None:
-                        self.logger.warning("[Receiver]: Error, read timeout in info packet")
+                        self.logger.warn("[Receiver]: Reading info packet timeout.")
                         error_count += 1
                         continue
                     elif char == SOH:
-                        self.logger.debug("[Receiver]: Received valid header (SOH)")
+                        self.logger.debug("[Receiver]: Received valid header (SOH).")
                         break
                     elif char == STX:
-                        self.logger.debug("[Receiver]: Received valid header (STX)")
+                        self.logger.debug("[Receiver]: Received valid header (STX).")
                         break
                     elif char == CAN:
                         if cancel:
-                            self.logger.info("[Receiver]: Transmission cancelled (CAN)")
+                            self.logger.warn("[Receiver]: Cancel transfer (CAN).")
                             return False
                         else:
-                            self.logger.debug("[Receiver]: Ready for transmission cancellation (CAN)")
+                            self.logger.warn("[Receiver]: Ready to cancel transfer (CAN).")
                             cancel = 1
                     else:
                         error_count += 1
@@ -399,43 +409,39 @@ class Modem(Protocol):
                         if char == SOH:
                             if packet_size != 128:
                                 packet_size = 128
-                                self.logger.debug("[Receiver]: Set 128 bytes as packet size")
+                                self.logger.debug("[Receiver]: Set 128 bytes as packet size.")
                             break
                         elif char == STX:
                             if packet_size != 1024:
                                 packet_size = 1024
-                                self.logger.debug("[Receiver]: Set 1024 bytes as packet size")
+                                self.logger.debug("[Receiver]: Set 1024 bytes as packet size.")
                             break
                         elif char == CAN:
                             if cancel:
-                                self.logger.info("[Receiver]: Transmission cancelled (CAN)")
+                                self.logger.info("[Receiver]: Transmission cancelled (CAN).")
                                 return False
                             else:
                                 cancel = 1
-                                self.logger.debug("[Receiver]: Ready for transmission cancellation (CAN)")
+                                self.logger.debug("[Receiver]: Ready for transmission cancellation (CAN).")
                         else:
-                            err_msg = ("[Receiver]: Expected SOH, EOT but got %r", char)
-
-                            self.logger.warning(err_msg)
+                            self.logger.warn("[Receiver]: Expected SOH, EOT but got %r.", char)
                             error_count += 1
                             if error_count > retry:
                                 self.abort()
-                                self.logger.info("[Receiver]: Error count reached %d, aborting...".format(retry))
+                                self.logger.error("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
                                 return False
-                    
-                    self.logger.debug('[Receiver]: Preparing for data packets....')
 
                     error_count = 0
                     cancel = 0
                     seq1 = self.reader.read(1, timeout)
                     if seq1 is None:
                         seq2 = None
-                        self.logger.warning("[Receiver]: Failed to read the first sequence byte")
+                        self.logger.warn("[Receiver]: Failed to read the first sequence byte.")
                     else:
                         seq1 = ord(seq1)
                         seq2 = self.reader.read(1, timeout)
                         if seq2 is None:
-                            self.logger.warning("[Receiver]: Failed to read the second sequence byte")
+                            self.logger.warn("[Receiver]: Failed to read the second sequence byte.")
                         else:
                             seq2 = 0xff - ord(seq2)
 
@@ -443,9 +449,8 @@ class Modem(Protocol):
                         self.logger.error("[Receiver]: Expected seq 0, got (seq1 %r, seq2 %r), receiving next packet...", seq1, seq2)
                         # skip this packet
                         self.reader.read(packet_size + 1 + crc_mode)
-                        self.logger.warning("[Receiver]: A wrong packet dropped")
+                        self.logger.warn("[Receiver]: A wrong packet dropped.")
                     else:
-                        self.logger.debug("[Receiver]: Read a packet")
                         data = self.reader.read(packet_size + 1 + crc_mode, timeout)
 
                         if data and len(data) == (packet_size + 1 + crc_mode):
@@ -459,28 +464,13 @@ class Modem(Protocol):
                                 if not file_name:
                                     self.writer.write(ACK)
                                     self.logger.debug("[Receiver]: Received batch end packet.")
-                                    self.logger.info("[Receiver]: All tasks completed successfully")
+                                    self.logger.info("[Receiver]: Done.")
                                     return True
-
-                                # verify the path
-                                p = os.path.join(folder_path, file_name)
-                                try:
-                                    stream = open(p, "wb+")
-                                except IOError as e:
-                                    stream.close()
-                                    self.logger.error("[Receiver]: Cannot open the save path: %s", p)
-                                    return False
                                 
                                 # start a new task
+                                self.logger.debug("[Receiver]: Received a valid info packet, parsing...")
+
                                 task_index += 1
-                                task = {
-                                    "name": "",
-                                    "total_length": 0,
-                                    "received_length": 0,
-                                    "mtime": 0,
-                                    "mode": 0,
-                                    "sn": 0
-                                }
                                 task["name"] = file_name
                                 self.logger.debug("[Receiver]: File - {}".format(task["name"]))
 
@@ -521,7 +511,7 @@ class Modem(Protocol):
                             pass
 
                     # Receive failed handler: ask for retransmission
-                    self.logger.warning('[Receiver]: Requesting retransmission (NAK)')
+                    self.logger.warn("[Receiver]: Requesting retransmission (NAK).")
                     while True:
                         data = self.reader.read(1, timeout=1)
                         if data is None:
@@ -529,6 +519,14 @@ class Modem(Protocol):
                     self.writer.write(NAK)
                     char = self.reader.read(1, timeout)
                     continue
+
+            # create file in saving folder
+            p = os.path.join(folder_path, task["name"])
+            try:
+                stream = open(p, "wb+")
+            except IOError as e:
+                self.logger.error("[Receiver]: Cannot open the save path: %s.", p)
+                return False
 
             '''
             Parse data packet
@@ -538,39 +536,41 @@ class Modem(Protocol):
             cancel = 0
             while True:
                 if error_count >= retry:
-                    self.logger.info("[Receiver]: Error count reached to %d, aborting...".format(retry))
                     self.abort(timeout=timeout)
+                    self.logger.error("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
+                    if stream:
+                        stream.close()
                     return False
                 elif crc_mode and error_count < (retry // 2):
                     if not self.writer.write(CRC):
-                        self.logger.debug("[Receiver]: Write failed, sleep for {}".format(delay))
+                        self.logger.debug("[Receiver]: Write failed, sleep for {}s.".format(delay))
                         time.sleep(delay)
                         error_count += 1
                 else:
                     crc_mode = 0
                     if not self.writer.write(NAK):
-                        self.logger.debug("[Receiver]: Write failed, sleep for {}s".format(delay))
+                        self.logger.debug("[Receiver]: Write failed, sleep for {}s.".format(delay))
                         time.sleep(delay)
                         error_count += 1
 
                 char = self.reader.read(1, timeout=3)
                 if char is None:
-                    self.logger.warning("[Receiver]: Read timeout in start sequence")
+                    self.logger.warn("[Receiver]: Reading start sequence timeout.")
                     error_count += 1
                     continue
                 elif char == SOH:
-                    self.logger.debug("[Receiver]: Received valid header (SOH)")
+                    self.logger.debug("[Receiver]: Received valid header (SOH).")
                     break
                 elif char == STX:
-                    self.logger.debug("[Receiver]: Received valid header (STX)")
+                    self.logger.debug("[Receiver]: Received valid header (STX).")
                     break
                 elif char == CAN:
                     if cancel:
-                        self.logger.info("[Receiver]: Transmission cancelled (CAN)")
+                        self.logger.info("[Receiver]: Cancel transfer (CAN).")
                         return False
                     else:
                         cancel = 1
-                        self.logger.debug("[Receiver]: Ready for transmission cancellation (CAN)")
+                        self.logger.debug("[Receiver]: Ready for cancel transfer (CAN).")
                 else:
                     error_count += 1
                     
@@ -586,12 +586,12 @@ class Modem(Protocol):
                     if char == SOH:
                         if packet_size != 128:
                             packet_size = 128
-                            self.logger.debug("[Receiver]: Set 128 bytes as packet size")
+                            self.logger.debug("[Receiver]: Set 128 bytes as packet size.")
                         break
                     elif char == STX:
                         if packet_size != 1024:
                             packet_size = 1024
-                            self.logger.debug("[Receiver]: Set 1024 bytes as packet size")
+                            self.logger.debug("[Receiver]: Set 1024 bytes as packet size.")
                         break
                     elif char == EOT:
                         self.writer.write(ACK)
@@ -600,19 +600,21 @@ class Modem(Protocol):
                         break
                     elif char == CAN:
                         if cancel:
-                            self.logger.info("[Receiver]: Transmission cancelled (CAN) at data packet {} (seq {})".format(success_packet_count, sequence))
+                            self.logger.warn("[Receiver]: Cancel transfer (CAN) at data packet {} (seq {}).".format(success_packet_count, sequence))
+                            if stream:
+                                stream.close()
                             return False
                         else:
                             cancel = 1
-                            self.logger.debug("[Receiver]: Ready for transmission cancellation (CAN) at data packet {} (seq {})".format(success_packet_count, sequence))
+                            self.logger.warn("[Receiver]: Ready for cancel transfer (CAN) at data packet {} (seq {}).".format(success_packet_count, sequence))
                     else:
-                        err_msg = ("[Receiver]: Expected SOH, EOT but got %r", char)
-
-                        self.logger.warning(err_msg)
+                        self.logger.warn("[Receiver]: Expected SOH, EOT but got %r.", char)
                         error_count += 1
                         if error_count > retry:
-                            self.logger.info("[Receiver]: Error count reached to {}, aborting...".format(retry))
                             self.abort()
+                            if stream:
+                                stream.close()
+                            self.logger.error("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
                             return False
                 
                 if eot_received:
@@ -623,21 +625,21 @@ class Modem(Protocol):
                 seq1 = self.reader.read(1, timeout)
                 if seq1 is None:
                     seq2 = None
-                    self.logger.warning("[Receiver]: Failed to read the first sequence byte.")
+                    self.logger.warn("[Receiver]: Failed to read the first sequence byte.")
                 else:
                     seq1 = ord(seq1)
                     seq2 = self.reader.read(1, timeout)
                     if seq2 is None:
-                        self.logger.warning("[Receiver]: Failed to read the second sequence byte.")
+                        self.logger.warn("[Receiver]: Failed to read the second sequence byte.")
                     else:
                         seq2 = 0xff - ord(seq2)
 
                 # Packet received in wrong number
                 if not (seq1 == seq2 == sequence):
-                    self.logger.error("[Receiver]: Expected seq %d but got (seq1 %d, seq2 %d), receiving next packet...", sequence, seq1, seq2)
+                    self.logger.warn("[Receiver]: Expected seq %d but got (seq1 %d, seq2 %d), receiving next packet...", sequence, seq1, seq2)
                     # skip this packet
                     self.reader.read(packet_size + 1 + crc_mode)
-                    self.logger.warning("[Receiver]: A wrong packet dropped")
+                    self.logger.warn("[Receiver]: A wrong packet dropped.")
                 
                 # Packet received
                 else:
@@ -649,7 +651,7 @@ class Modem(Protocol):
                         # Write the original data to the target file
                         if valid:
                             success_packet_count += 1
-                            self.logger.debug('[Receiver]: Data packet %d (seq %d) OK', success_packet_count, sequence)
+                            self.logger.debug("[Receiver]: Received a valid data packet %d (seq %d), parsing...", success_packet_count, sequence)
 
                             valid_length = packet_size
 
@@ -681,7 +683,7 @@ class Modem(Protocol):
                         pass
 
                 # Receive failed handler: ask for retransmission
-                self.logger.warning("[Receiver]: Requesting retransmission (NAK)")
+                self.logger.warn("[Receiver]: Requesting retransmission (NAK).")
                 while True:
                     data = self.reader.read(1, timeout=1)
                     if data is None:
@@ -689,6 +691,9 @@ class Modem(Protocol):
                 self.writer.write(NAK)
                 char = self.reader.read(1, timeout)
                 continue
+
+            if stream:
+                stream.close()
 
     def _verify_recv_checksum(self, crc_mode, data):
         if crc_mode:
@@ -699,7 +704,7 @@ class Modem(Protocol):
             local_sum = self.calc_crc(data)
             valid = bool(remote_sum == local_sum)
             if not valid:
-                self.logger.warning("[Receiver]: Checksum failed (remote %04x, local %04x)", remote_sum, local_sum)
+                self.logger.warn("[Receiver]: Checksum failed (remote %04x, local %04x).", remote_sum, local_sum)
         else:
             _checksum = bytearray([data[-1]])
             remote_sum = _checksum[0]
@@ -708,7 +713,7 @@ class Modem(Protocol):
             local_sum = self.calc_checksum(data)
             valid = remote_sum == local_sum
             if not valid:
-                self.logger.warning("[Receiver]: Checksum failed (remote %02x, local %02x)", remote_sum, local_sum)
+                self.logger.warn("[Receiver]: Checksum failed (remote %02x, local %02x).", remote_sum, local_sum)
         return valid, data
 
     def calc_checksum(self, data, checksum=0):
