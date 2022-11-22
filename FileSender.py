@@ -31,19 +31,14 @@ if __name__ == '__main__':
     sender = Modem(sender_read, sender_write)
 
     os.chdir(sys.path[0])
-    file_path = os.path.abspath('local/sample.stl')
+
+    file_path1 = os.path.abspath('local/sample.stl')
+    file_path2 = os.path.abspath('local/sample2.stl')
+    file_path3 = os.path.abspath('local/sample3.stl')
+
     try:
-        file_stream = open(file_path, 'rb')
-        file_info = {
-            "name"      :   os.path.basename(file_path),
-            "length"    :   os.path.getsize(file_path),
-            "mtime"     :   os.path.getmtime(file_path),
-            "source"    :   "win"
-        }
-        sender.send(file_stream, info=file_info)
+        sender.send([file_path1, file_path2, file_path3])
     except IOError as e:
         pass
-    finally:
-        file_stream.close()
 
     serial_io.close()

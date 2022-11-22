@@ -17,18 +17,18 @@ class Protocol(object):
 
     @reader.setter
     def reader(self, r):
-        if hasattr(r, "read") and isinstance(r.read, types.FunctionType):
+        if hasattr(r, "read") and callable(r.read):
             self._reader = r
-        elif isinstance(r, types.FunctionType):
+        elif callable(r):
             self._reader = RWBuilder(rFunc=r)
         else:
             raise TypeError("unknown type for reader")
     
     @writer.setter
     def writer(self, w):
-        if hasattr(w, "write") and isinstance(w.write, types.FunctionType):
+        if hasattr(w, "write") and callable(w.write):
             self._writer = w
-        elif isinstance(w, types.FunctionType):
+        elif callable(w):
             self._writer = RWBuilder(wFunc=w)
         else:
             raise TypeError("unknown type for writer")
