@@ -7,8 +7,6 @@ import platform
 
 from .Protocol import Protocol
 
-logging.basicConfig(level = logging.INFO, format = '%(message)s')
-
 SOH = b'\x01'
 STX = b'\x02'
 EOT = b'\x04'

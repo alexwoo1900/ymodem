@@ -1,9 +1,12 @@
 import os
 import sys
 import serial
+import logging
 from ymodem.Modem import Modem
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    
     serial_io = serial.Serial()
     serial_io.port = "COM2"
     serial_io.baudrate = "115200"
