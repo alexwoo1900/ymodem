@@ -1,11 +1,35 @@
 import os
 import sys
+import math
+import time
 import serial
 import logging
 from ymodem.Modem import Modem
 
+class TaskProgressBar:
+    def __init__(self):
+        self.bar_width = 50
+        self.last_task_name = ""
+        self.current_task_start_time = -1
+
+    def show(self, task_index, task_name, total, success, failed):
+        if task_name != self.last_task_name:
+            self.current_task_start_time = time.perf_counter()
+            if self.last_task_name != "":
+                print('\n', end="")
+            self.last_task_name = task_name
+
+        success_width = math.ceil(success * self.bar_width / total)
+
+        a = "#" * success_width
+        b = "." * (self.bar_width - success_width)
+        progress = (success_width / self.bar_width) * 100
+        cost = time.perf_counter() - self.current_task_start_time
+
+        print(f"\r{task_index} - {task_name} {progress:.2f}% [{a}->{b}]{cost:.2f}s", end="")
+
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
     
     serial_io = serial.Serial()
     serial_io.port = "COM2"
@@ -30,9 +54,8 @@ if __name__ == '__main__':
 
     receiver = Modem(receiver_read, receiver_write)
     os.chdir(sys.path[0])
-
     folder_path = os.path.abspath("remote")
-
-    received = receiver.recv(folder_path)
+    progress_bar = TaskProgressBar()
+    received = receiver.recv(folder_path, callback=progress_bar.show)
 
     serial_io.close()

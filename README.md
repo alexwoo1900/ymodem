@@ -18,15 +18,15 @@ If you want to run the test sample, please do the following:
 2. run the FileReceiver.py and FileSender.py on the command line
 
 The specific transmission process is shown in the following figure:
-![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.gif)
+![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/console_test.gif)
 
 ### Interact with SecureCRT
 
 Interact with SecureCRT as sender
-![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
+![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sender.gif)
 
 Interact with SecureCRT as Finder
-![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
+![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/receiver.gif)
 
 ## Quick start
 
@@ -34,30 +34,39 @@ Interact with SecureCRT as Finder
 ```python
 from Modem import Modem
 
-# Sender
+'''
+Sender
+'''
+# define read function for sender
 def sender_read(size, timeout=3):
-    serial_io.timeout = timeout
-    return serial_io.read(size) or None
+    pass
 
+# define write function for sender
 def sender_write(data, timeout=3):
-    serial_io.writeTimeout = timeout
-    return serial_io.write(data)
+    pass
 
+# create sender
 sender = Modem(sender_read, sender_write)
 
+# send multi files
 sender.send([file_path1, file_path2, file_path3 ...])
 
-# Receiver
+'''
+Receiver
+'''
+
+# define read function for receiver
 def receiver_read(size, timeout=3):
-    serial_io.timeout = timeout
-    return serial_io.read(size) or None
+    pass
 
+# define write function for receiver
 def receiver_write(data, timeout=3):
-    serial_io.writeTimeout = timeout
-    return serial_io.write(data)
+    pass
 
+# create receiver
 receiver = Modem(receiver_read, receiver_write)
 
+# receive multi files
 receiver.recv(folder_path)
 ```
 
@@ -83,15 +92,13 @@ def send(self, file_paths, retry=10, timeout=10, callback=None)
 - timeout: timeout of reader or writer in second.
 - callback: callback function. see below.
 
-callback parameters:
-
-Parameter | Description
--|-
-task index | index of current task
-task (file) name | name of the file
-total packets | number of packets plan to send
-success packets | number of packets successfully sent
-failed packets | number of packets failed to send
+    Parameter | Description
+    -|-
+    task index | index of current task
+    task (file) name | name of the file
+    total packets | number of packets plan to send
+    success packets | number of packets successfully sent
+    failed packets | number of packets failed to send
 
 ### Receive files
 
@@ -106,15 +113,21 @@ def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=
 - delay: delay in second.
 - callback: callback function. see below.
 
-callback parameters:
+    Parameter | Description
+    -|-
+    task index | index of current task
+    task (file) name | name of the file
+    total packets | number of packets plan to send
+    success packets | number of packets successfully sent
+    failed packets | number of packets failed to send
 
-Parameter | Description
--|-
-task index | index of current task
-task (file) name | name of the file
-total packets | number of packets plan to send
-success packets | number of packets successfully sent
-failed packets | number of packets failed to send
+## Debug
+
+If you want to output debugging information, set the log level to DEBUG.
+
+```python
+logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+```
 
 ## Changelog
 ### v1.3 (2022/11/21 14:00 +00:00)

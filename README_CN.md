@@ -17,45 +17,54 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 2. 在命令行中分别运行FileReceiver.py与FileSender.py文件
 
 具体的传输过程如下图所示：
-![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/cmd_test.gif)
+![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/console_test.gif)
 
 ### 与SecureCRT交互
 
 作为发送者与SecureCRT交互
-![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_sender.gif)
+![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sender.gif)
 
 作为接收者与SecureCRT交互
-![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/ymodem_receiver.gif)
+![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/receiver.gif)
 
 ## 快速上手
 
 ```python
 from Modem import Modem
 
-# Sender
+'''
+Sender
+'''
+# define read function for sender
 def sender_read(size, timeout=3):
-    serial_io.timeout = timeout
-    return serial_io.read(size) or None
+    pass
 
+# define write function for sender
 def sender_write(data, timeout=3):
-    serial_io.writeTimeout = timeout
-    return serial_io.write(data)
+    pass
 
+# create sender
 sender = Modem(sender_read, sender_write)
 
+# send multi files
 sender.send([file_path1, file_path2, file_path3 ...])
 
-# Receiver
+'''
+Receiver
+'''
+
+# define read function for receiver
 def receiver_read(size, timeout=3):
-    serial_io.timeout = timeout
-    return serial_io.read(size) or None
+    pass
 
+# define write function for receiver
 def receiver_write(data, timeout=3):
-    serial_io.writeTimeout = timeout
-    return serial_io.write(data)
+    pass
 
+# create receiver
 receiver = Modem(receiver_read, receiver_write)
 
+# receive multi files
 receiver.recv(folder_path)
 ```
 
@@ -79,17 +88,15 @@ def send(self, file_paths, retry=10, timeout=10, callback=None):
 - file_paths： 文件路径列表。
 - retry： 最大重传次数。
 - timeout： reader和writer的超时时间。
-- callback： 回调函数，参数见下表。
+- callback： 回调函数，见下表。
 
-回调参数：
-
-参数（按顺序） | 描述
--|-
-task index | 任务索引
-task (file) name | 任务（文件）名称
-total packets | 总包数
-success packets | 成功包数
-failed packets | 失败包数
+    参数（按顺序） | 描述
+    -|-
+    task index | 任务索引
+    task (file) name | 任务（文件）名称
+    total packets | 总包数
+    success packets | 成功包数
+    failed packets | 失败包数
 
 
 ### 接收数据
@@ -102,17 +109,23 @@ def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=
 - retry： 最大重传次数。
 - timeout： reader和writer的超时时间。
 - delay： 延迟时间。
-- callback： 回调函数，参数见下表。
+- callback： 回调函数，见下表。
 
-回调参数：
+    参数（按顺序） | 描述
+    -|-
+    task index | 任务索引
+    task (file) name | 任务（文件）名称
+    total packets | 总包数
+    success packets | 成功包数
+    failed packets | 失败包数
 
-参数（按顺序） | 描述
--|-
-task index | 任务索引
-task (file) name | 任务（文件）名称
-total packets | 总包数
-success packets | 成功包数
-failed packets | 失败包数
+## 调试
+
+如果想要输出调试信息，请把日志等级设成DEBUG。
+
+```python
+logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+```
 
 ## 更新日志
 ### v1.3 (2022/11/21 14:00 +00:00)
