@@ -4,7 +4,7 @@ import math
 import time
 import serial
 import logging
-from ymodem.Modem import Modem
+from ymodem.Socket import ModemSocket
 
 class TaskProgressBar:
     def __init__(self):
@@ -29,7 +29,7 @@ class TaskProgressBar:
         print(f"\r{task_index} - {task_name} {progress:.2f}% [{a}->{b}]{cost:.2f}s", end="")
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
     
     serial_io = serial.Serial()
     serial_io.port = "COM2"
@@ -52,7 +52,7 @@ if __name__ == '__main__':
         serial_io.writeTimeout = timeout
         return serial_io.write(data)
 
-    receiver = Modem(receiver_read, receiver_write)
+    receiver = ModemSocket(receiver_read, receiver_write)
     os.chdir(sys.path[0])
     folder_path = os.path.abspath("remote")
     progress_bar = TaskProgressBar()

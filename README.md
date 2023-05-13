@@ -30,66 +30,56 @@ Interact with SecureCRT as Finder
 
 ## Quick start
 
-
 ```python
-from Modem import Modem
+from ymodem.Socket import ModemSocket
 
-'''
-Sender
-'''
-# define read function for sender
-def sender_read(size, timeout=3):
-    pass
+# define read function
+def read(size, timeout=3):
+    # implementation
 
-# define write function for sender
-def sender_write(data, timeout=3):
-    pass
+# define write function
+def write(data, timeout=3):
+    # implementation
 
 # create sender
-sender = Modem(sender_read, sender_write)
+cli = ModemSocket(read, write)
 
 # send multi files
-sender.send([file_path1, file_path2, file_path3 ...])
-
-'''
-Receiver
-'''
-
-# define read function for receiver
-def receiver_read(size, timeout=3):
-    pass
-
-# define write function for receiver
-def receiver_write(data, timeout=3):
-    pass
-
-# create receiver
-receiver = Modem(receiver_read, receiver_write)
+cli.send([file_path1, file_path2, file_path3 ...])
 
 # receive multi files
-receiver.recv(folder_path)
+cli.recv(folder_path)
 ```
+
+For more detailed usage, please refer to the FileReceiver. py and FileSender. py files.
 
 ## API
 
 ### Create MODEM Object
 
 ```python
-def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
+def __init__(self, 
+             read: Callable[[int, Optional[float]], Any], 
+             write: Callable[[Union[bytes, bytearray], Optional[float]], Any], 
+             protocol_type: int = ProtocolType.YMODEM, 
+             packet_size: int = 1024,
+             style_id: int = _psm.get_available_styles()[0]):
 ```
-- reader, reader(object) or read(function)
-- writer, writer(object) or write(function)
-- mode, support xmodem, xmodem1k, ymodem, ymodem1k(by default)
-- program, YMODEM of different program have different features
+- protocol_type: Protocol type, see Protocol.py
+- packet_size: The size of a single packet, 128/1024 bytes, may be adjusted depending on the protocol style
+- style_id: Protocol style, different styles have different support for functional features
 
 ### Send files
 
 ```python
-def send(self, file_paths, retry=10, timeout=10, callback=None)
+def send(self, 
+         paths: List[str], 
+         retry: int = 10, 
+         timeout: float = 10, 
+         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+        ) -> bool:
 ```
-- file_paths: file path list.
-- retry: max retry count.
-- timeout: timeout of reader or writer in second.
+
 - callback: callback function. see below.
 
     Parameter | Description
@@ -103,23 +93,17 @@ def send(self, file_paths, retry=10, timeout=10, callback=None)
 ### Receive files
 
 ```python
-def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None)
+def recv(self, 
+         path: str, 
+         crc_mode: int = 1, 
+         retry: int = 10, 
+         timeout: float = 10, 
+         delay: float = 1, 
+         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+        ) -> bool:
 ```
 
-- folder_path: folder path for saving.
-- crc_mode: checksum or crc mode.
-- retry: max retry count.
-- timeout: timeout of reader or writer in second.
-- delay: delay in second.
-- callback: callback function. see below.
-
-    Parameter | Description
-    -|-
-    task index | index of current task
-    task (file) name | name of the file
-    total packets | number of packets plan to send
-    success packets | number of packets successfully sent
-    failed packets | number of packets failed to send
+- callback: callback function. Same as the callback of send().
 
 ## Debug
 
@@ -130,10 +114,9 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 ```
 
 ## Changelog
-### v1.3 (2022/11/21 14:00 +00:00)
+### v1.4 (2023/05/13 14:00 +00:00)
 
-- Support batch transmission
-- Simplify the API
+- Rewritten the logic for handling some parameters
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)

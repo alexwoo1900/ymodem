@@ -1,11 +1,13 @@
-import os
-import sys
-import math
-import time
+from abc import ABC, abstractmethod
 import logging
-import platform
+import math
+import os
+import time
+from typing import Any, Callable, List, Optional, Union
 
-from .Protocol import Protocol
+from ymodem.Checksum import calc_crc, calc_checksum
+from ymodem.Platform import Platform
+from ymodem.Protocol import ProtocolType, ProtocolStyleManagement, YMODEM
 
 SOH = b'\x01'
 STX = b'\x02'
@@ -15,90 +17,100 @@ NAK = b'\x15'
 CAN = b'\x18'
 CRC = b'\x43'
 
-USE_LENGTH_FIELD    = 0b100000
-USE_DATE_FIELD      = 0b010000
-USE_MODE_FIELD      = 0b001000
-USE_SN_FIELD        = 0b000100
-ALLOW_1K_PACKET     = 0b000010
-ALLOW_YMODEM_G      = 0b000001
+class Channel(ABC):
 
-class Modem(Protocol):
-    def __init__(self, reader, writer, mode='ymodem1k', program="rzsz"):
-        self.logger = logging.getLogger('Modem')
+    @abstractmethod
+    def read(self, *arg, **kwargs):
+        pass
 
-        self.platform = sys.platform
-        self.reader = reader
-        self.writer = writer
-        self.mode   = mode
+    @abstractmethod
+    def write(self, *arg, **kwargs):
+        pass
 
-        '''
-        YMODEM Header Information and Features
-        _____________________________________________________________
-        | Program   | Length | Date | Mode | S/N | 1k-Blk | YMODEM-g |
-        |___________|________|______|______|_____|________|__________|
-        |Unix rz/sz | yes    | yes  | yes  | no  | yes    | sb only  |
-        |___________|________|______|______|_____|________|__________|
-        |VMS rb/sb  | yes    | no   | no   | no  | yes    | no       |
-        |___________|________|______|______|_____|________|__________|
-        |Pro-YAM    | yes    | yes  | no   | yes | yes    | yes      |
-        |___________|________|______|______|_____|________|__________|
-        |CP/M YAM   | no     | no   | no   | no  | yes    | no       |
-        |___________|________|______|______|_____|________|__________|
-        |KMD/IMP    | ?      | no   | no   | no  | yes    | no       |
-        |___________|________|______|______|_____|________|__________|
+_psm = ProtocolStyleManagement()
 
-        '''
-        try:
-            self.program_features = dict(
-                rzsz    = USE_LENGTH_FIELD | USE_DATE_FIELD | USE_MODE_FIELD | ALLOW_1K_PACKET,
-                rbsb    = USE_LENGTH_FIELD | ALLOW_1K_PACKET,
-                pyam    = USE_LENGTH_FIELD | USE_DATE_FIELD | USE_SN_FIELD | ALLOW_1K_PACKET | ALLOW_YMODEM_G,
-                cyam    = ALLOW_1K_PACKET,
-                kimp    = ALLOW_1K_PACKET,
-            )[program]
-        except KeyError:
-            raise ValueError("Invalid program specified: {}".format(program))
+class ModemSocket(Channel):
+    def __init__(self, 
+                 read: Callable[[int, Optional[float]], Any], 
+                 write: Callable[[Union[bytes, bytearray], Optional[float]], Any], 
+                 protocol_type: int = ProtocolType.YMODEM, 
+                 packet_size: int = 1024,
+                 style_id: int = _psm.get_available_styles()[0]):
+
+        self.logger = logging.getLogger('Socket')
+
+        self._read = read
+        self._write = write
+        self.set_protocol_type(protocol_type)
+        self.set_protocol_style(style_id, packet_size)
         
-    def abort(self, count=2, timeout=60):
+
+    def read(self, size: int, timeout: float = 2):
+        return self._read(size, timeout)
+    
+    def write(self, data: Union[bytes, bytearray], timeout: float = 2):
+        return self._write(data, timeout)
+    
+    def set_protocol_type(self, protocol_type: int):
+        if protocol_type not in ProtocolType.all():
+            raise ValueError(f"Invalid mode specified: {protocol_type}")
+        self.protocol_type = protocol_type
+
+    def set_protocol_style(self, style_id: int, packet_size: int):
+        if self.protocol_type == ProtocolType.YMODEM:
+
+            if style_id not in _psm.get_available_styles():
+                raise ValueError(f"Invalid style specified: {style_id}")        
+            style = _psm.get_available_style(style_id)
+            self._protocol_features = style.get_protocol_features(ProtocolType.YMODEM)
+
+            if packet_size not in [128, 1024]:
+                raise ValueError(f"Invalid packet size specified: {packet_size}")
+            self._packet_size = packet_size
+            if (self._protocol_features & YMODEM.ALLOW_1K_PACKET) == 0:
+                self._packet_size = 128
+        
+    def abort(self, count: int = 2, timeout: float = 60) -> None:
+        '''
+        Send CAN
+
+        param count: the number of times to send, default to 2
+        param timeout: write timeout
+        '''
+
         for _ in range(count):
-            self.writer.write(CAN, timeout)
+            self.write(CAN, timeout)
 
-    def send(self, file_paths, retry=10, timeout=10, callback=None):
+    def send(self, 
+             paths: List[str], 
+             retry: int = 10, 
+             timeout: float = 10, 
+             callback: Optional[Callable[[int, str, int, int, int], None]] = None
+             ) -> bool:
+        '''
+        Send files
 
-        try:
-            packet_size = dict(
-                xmodem    = 128,
-                xmodem1k  = 1024,
-                ymodem    = 128,
-                # Not all but most programs support 1k length
-                ymodem1k  = (128, 1024)[(self.program_features & ALLOW_1K_PACKET) != 0],
-            )[self.mode]
-        except KeyError:
-            raise ValueError("Invalid mode specified: {}.".format(self.mode))
-
+        param paths: List of file paths to be sent
+        param retry: Number of retries when communication error occur
+        param timeout: read/write timeout
+        param callback: 
+        '''
         
         tasks = []
 
-        for file_path in file_paths:
-            tasks.append(
-                {
-                    "path": file_path,
-                    "name": os.path.basename(file_path),
-                    "length": os.path.getsize(file_path),
-                    "mtime": os.path.getmtime(file_path)
-                }
-            )
+        for path in paths:
+            if os.path.isfile(path):
+                tasks.append(_ModemFile(path))
 
         for task_index, task in enumerate(tasks):
 
             try:
-                stream = open(task["path"], 'rb')
-            except IOError as e:
-                self.logger.debug("[Sender]: Cannot open the file: %s.", task)
-                return False
+                stream = open(task.path, "rb")
+            except IOError:
+                self.logger.warning(f"[Sender]: Cannot open the file: {task.path}.")
+                continue
 
-            if self.mode.startswith("ymodem"):
-
+            if self.protocol_type == ProtocolType.YMODEM:
                 '''
                 Info packet
                 '''
@@ -107,7 +119,7 @@ class Modem(Protocol):
                 error_count = 0
                 while True:
                     # Blocking may occur here, the reader needs to have a timeout mechanism
-                    char = self.reader.read(1, timeout)
+                    char = self.read(1, timeout)
 
                     if char == NAK:
                         crc_mode = 0
@@ -128,56 +140,56 @@ class Modem(Protocol):
 
                     error_count += 1
                     if error_count > retry:
-                        self.abort(timeout=timeout)
+                        self.abort(timeout = timeout)
                         if stream:
                             stream.close()
-                        self.logger.debug("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
+                        self.logger.debug(f"[Sender]: Aborted, the number of errors has reached {retry}.")
                         return False
 
-                header = self._make_send_header(packet_size, 0)
+                header = self._make_send_header(self._packet_size, 0)
 
                 # Required field: Name
-                data = task["name"].encode("utf-8")
+                data = task.name.encode("utf-8")
                 
                 # Optional field: Length
-                if self.program_features & USE_LENGTH_FIELD:
+                if self._protocol_features & YMODEM.USE_LENGTH_FIELD:
                     data += bytes(1)
-                    data += str(task["length"]).encode("utf-8")
+                    data += str(task.total).encode("utf-8")
 
                 
                 # Optional field: Modification Date
                 # oct() has different representations of octal numbers in different versions of Python:
                 # Python 2+: 0123456
                 # Python 3+: 0o123456
-                if self.program_features & USE_DATE_FIELD:
-                    mtime = oct(int(task["mtime"]))
+                if self._protocol_features & YMODEM.USE_DATE_FIELD:
+                    mtime = oct(int(task.mtime))
                     if mtime.startswith("0o"):
                         data += (" " + mtime[2:]).encode("utf-8")
                     else:
                         data += (" " + mtime[1:]).encode("utf-8")
 
                 # Optional field: Mode
-                if self.program_features & USE_MODE_FIELD:
-                    if self.platform == "linux":
+                if self._protocol_features & YMODEM.USE_MODE_FIELD:
+                    if Platform.is_Linux():
                         data += (" " + oct(0x8000)).encode("utf-8")
                     else:
                         data += (" 0").encode("utf-8")
 
                 # Optional field: Serial Number
-                if self.program_features & USE_MODE_FIELD:
+                if self._protocol_features & YMODEM.USE_MODE_FIELD:
                     data += (" 0").encode("utf-8")
 
-                data = data.ljust(packet_size, b"\x00")
+                data = data.ljust(self._packet_size, b"\x00")
                 checksum = self._make_send_checksum(crc_mode, data)
                 
                 error_count = 0
                 while True:
                     # Blocking may occur here, the writer needs to have a timeout mechanism
-                    self.writer.write(header + data + checksum)
+                    self.write(header + data + checksum)
                     self.logger.debug("[Sender]: Info packet sent")
 
                     # Blocking may occur here, the reader needs to have a timeout mechanism
-                    char = self.reader.read(1, timeout)
+                    char = self.read(1, timeout)
                     if char == ACK:
                         error_count = 0
                         break
@@ -186,10 +198,10 @@ class Modem(Protocol):
                         self.logger.debug("[Sender]: No valid data read.")
 
                     if error_count > retry:
-                        self.abort(timeout=timeout)
+                        self.abort(timeout = timeout)
                         if stream:
                             stream.close()
-                        self.logger.debug("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
+                        self.logger.debug(f"[Sender]: Aborted, the number of errors has reached {retry}.")
                         return False
 
             '''
@@ -200,7 +212,7 @@ class Modem(Protocol):
             error_count = 0
             while True:
                 # Blocking may occur here, the reader needs to have a timeout mechanism
-                char = self.reader.read(1, timeout)
+                char = self.read(1, timeout)
 
                 if char == NAK:
                     crc_mode = 0
@@ -221,19 +233,19 @@ class Modem(Protocol):
 
                 error_count += 1
                 if error_count > retry:
-                    self.abort(timeout=timeout)
+                    self.abort(timeout = timeout)
                     if stream:
                         stream.close()
-                    self.logger.debug("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
+                    self.logger.debug(f"[Sender]: Aborted, the number of errors has reached {retry}.")
                     return False
 
             sequence = 1
-            total_packet_count = math.ceil(task["length"] / packet_size)
+            total_packet_count = math.ceil(task.total / self._packet_size)
             success_packet_count = 0
             error_packet_count = 0
             while True:
                 try:
-                    data = stream.read(packet_size)
+                    data = stream.read(self._packet_size)
                 except Exception as e:
                     stream.close()
                     self.logger.debug("[Sender]: Failed to read file.")
@@ -243,57 +255,57 @@ class Modem(Protocol):
                     self.logger.debug("[Sender]: Reached EOF")
                     break
 
-                header = self._make_send_header(packet_size, sequence)
+                header = self._make_send_header(self._packet_size, sequence)
                 # fill with 1AH(^z)
-                data = data.ljust(packet_size, b"\x1a")
+                data = data.ljust(self._packet_size, b"\x1a")
                 checksum = self._make_send_checksum(crc_mode, data)
 
                 while True:
                     # Blocking may occur here, the writer needs to have a timeout mechanism
-                    self.writer.write(header + data + checksum)
-                    self.logger.debug("[Sender]: Packet %d sent.", sequence)
+                    self.write(header + data + checksum)
+                    self.logger.debug(f"[Sender]: Packet {sequence} sent.")
 
                     # Blocking may occur here, the reader needs to have a timeout mechanism
-                    char = self.reader.read(1, timeout)
+                    char = self.read(1, timeout)
                     if char == ACK:
                         success_packet_count += 1
 
                         if callable(callback):
-                            callback(task_index, task["name"], total_packet_count, success_packet_count, error_packet_count)
+                            callback(task_index, task.name, total_packet_count, success_packet_count, error_packet_count)
 
                         error_packet_count = 0
                         break
                     else:
                         error_packet_count += 1
-                        self.logger.debug("[Sender]: Ready to resend packet %d.", sequence)
+                        self.logger.debug(f"[Sender]: Ready to resend packet {sequence}.")
 
                         if callable(callback):
-                            callback(task_index, task["name"], total_packet_count, success_packet_count, error_packet_count)
+                            callback(task_index, task.name, total_packet_count, success_packet_count, error_packet_count)
 
                         if error_packet_count > retry:
                             self.abort(timeout=timeout)
                             if stream:
                                 stream.close()
-                            self.logger.debug("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
+                            self.logger.debug(f"[Sender]: Aborted, the number of errors has reached {retry}.")
                             return False
 
                 sequence = (sequence + 1) % 0x100
 
-            self.logger.debug("[Sender]: %d of %d - %s completed.", task_index+1, len(tasks), task["name"])
+            self.logger.debug("[Sender]: %d of %d - %s completed.", task_index+1, len(tasks), task.name)
 
             '''
             EOT 
             '''
-            self.writer.write(EOT)
+            self.write(EOT)
             self.logger.debug("[Sender]: EOT sent.")
 
-            char = self.reader.read(1, timeout)
+            char = self.read(1, timeout)
             if char != ACK:
-                self.writer.write(EOT)
+                self.write(EOT)
                 self.logger.debug("[Sender]: EOT resent.")
 
                 while True:
-                    char = self.reader.read(1, timeout)
+                    char = self.read(1, timeout)
                     if char == ACK:
                         break
                     else:
@@ -301,10 +313,10 @@ class Modem(Protocol):
                         self.logger.debug("[Sender]: No valid data read.")
 
                     if error_count > retry:
-                        self.abort(timeout=timeout)
+                        self.abort(timeout = timeout)
                         if stream:
                             stream.close()
-                        self.logger.debug("[Sender]: Aborted, the number of errors has reached {}.".format(retry))
+                        self.logger.debug(f"[Sender]: Aborted, the number of errors has reached {retry}.")
                         return False
 
         if stream:
@@ -313,10 +325,10 @@ class Modem(Protocol):
         '''
         batch end packet
         '''
-        header = self._make_send_header(packet_size, 0)
-        data = bytearray().ljust(packet_size, b"\x00")
+        header = self._make_send_header(self._packet_size, 0)
+        data = bytearray().ljust(self._packet_size, b"\x00")
         checksum = self._make_send_checksum(crc_mode, data)
-        self.writer.write(header + data + checksum)
+        self.write(header + data + checksum)
         self.logger.debug("[Sender]: Batch end packet sent.")
 
         return True
@@ -335,55 +347,55 @@ class Modem(Protocol):
     def _make_send_checksum(self, crc_mode, data):
         _bytes = []
         if crc_mode:
-            crc = self.calc_crc(data)
+            crc = calc_crc(data)
             _bytes.extend([crc >> 8, crc & 0xff])
         else:
-            crc = self.calc_checksum(data)
+            crc = calc_checksum(data)
             _bytes.append(crc)
         return bytearray(_bytes)
 
-    def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None):
+    def recv(self, 
+             path: str, 
+             crc_mode: int = 1, 
+             retry: int = 10, 
+             timeout: float = 10, 
+             delay: float = 1, 
+             callback: Optional[Callable[[int, str, int, int, int], None]] = None
+             ) -> bool:
 
         # task index
         task_index = -1
 
         while True:
 
-            task = {
-                "name": "",
-                "total_length": 0,
-                "received_length": 0,
-                "mtime": 0,
-                "mode": 0,
-                "sn": 0
-            }
+            task = _ModemFile()
             
             '''
             Parse info packet
             '''
-            if self.mode.startswith("ymodem"):
+            if self.protocol_type == ProtocolType.YMODEM:
 
                 char = 0
                 cancel_count = 0
                 error_count = 0
                 while True:
                     if error_count >= retry:
-                        self.abort(timeout=timeout)
-                        self.logger.debug("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
+                        self.abort(timeout = timeout)
+                        self.logger.debug(f"[Receiver]: Aborted, the number of errors has reached {retry}.")
                         return False
                     elif crc_mode and error_count < (retry // 2):
-                        if not self.writer.write(CRC):
+                        if not self.write(CRC):
                             time.sleep(delay)
                             error_count += 1
-                            self.logger.debug("[Receiver]: Failed to write CRC, sleep for {}s.".format(delay))
+                            self.logger.debug(f"[Receiver]: Failed to write CRC, sleep for {delay}s.")
                     else:
                         crc_mode = 0
-                        if not self.writer.write(NAK):
+                        if not self.write(NAK):
                             time.sleep(delay)
                             error_count += 1
-                            self.logger.debug("[Receiver]: Failed to write NAK, sleep for {}s".format(delay))
+                            self.logger.debug(f"[Receiver]: Failed to write NAK, sleep for {delay}s")
 
-                    char = self.reader.read(1, timeout=3)
+                    char = self.read(1, timeout = 3)
                     if char == SOH or char == STX:
                         break
                     elif char == CAN:
@@ -420,15 +432,15 @@ class Modem(Protocol):
                             self.logger.debug("[Receiver]: No valid data received.")
 
                         if error_count > retry:
-                            self.abort(timeout=timeout)
-                            self.logger.debug("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
+                            self.abort(timeout = timeout)
+                            self.logger.debug(f"[Receiver]: Aborted, the number of errors has reached {retry}.")
                             return False
 
                     error_count = 0
-                    seq1 = self.reader.read(1, timeout)
+                    seq1 = self.read(1, timeout)
                     if seq1:
                         seq1 = ord(seq1)
-                        seq2 = self.reader.read(1, timeout)
+                        seq2 = self.read(1, timeout)
                         if seq2:
                             seq2 = 0xff - ord(seq2)
                     else:
@@ -437,10 +449,10 @@ class Modem(Protocol):
                     if not (seq1 == seq2 == 0):
                         self.logger.debug("[Receiver]: Expected seq 0 but got (seq1 %r, seq2 %r).", seq1, seq2)
                         # skip this packet
-                        self.reader.read(packet_size + 1 + crc_mode)
+                        self.read(packet_size + 1 + crc_mode)
                         self.logger.debug("[Receiver]: Dropped the broken packet.")
                     else:
-                        data = self.reader.read(packet_size + 1 + crc_mode, timeout)
+                        data = self.read(packet_size + 1 + crc_mode, timeout)
 
                         if data and len(data) == (packet_size + 1 + crc_mode):
                             valid, data = self._verify_recv_checksum(crc_mode, data)
@@ -452,7 +464,7 @@ class Modem(Protocol):
                                 # batch end packet received
                                 if not file_name:
                                     self.logger.debug("[Receiver]: Received batch end packet.")
-                                    self.writer.write(ACK)
+                                    self.write(ACK)
                                     return True
 
                                 # info packet received
@@ -460,35 +472,35 @@ class Modem(Protocol):
                                     self.logger.debug("[Receiver]: Received info packet.")
 
                                 task_index += 1
-                                task["name"] = file_name
-                                self.logger.debug("[Receiver]: File - {}".format(task["name"]))
+                                task.name = file_name
+                                self.logger.debug(f"[Receiver]: File - {task.name}")
 
                                 data = bytes.decode(data.split(b"\x00")[1], "utf-8")
 
-                                if self.program_features & USE_LENGTH_FIELD:
+                                if self._protocol_features & YMODEM.USE_LENGTH_FIELD:
                                     space_index = data.find(" ")
-                                    task["total_length"] = int(data if space_index == -1 else data[:space_index])
-                                    self.logger.debug("[Receiver]: Size - {} bytes".format(task["total_length"]))
+                                    task.total = int(data if space_index == -1 else data[:space_index])
+                                    self.logger.debug(f"[Receiver]: Size - {task.total} bytes")
                                     data = data[space_index + 1:]
 
-                                if self.program_features & USE_DATE_FIELD:
+                                if self._protocol_features & YMODEM.USE_DATE_FIELD:
                                     space_index = data.find(" ")
-                                    task["mtime"] = int(data if space_index == -1 else data[:space_index], 8)
-                                    self.logger.debug("[Receiver]: Mtime - {} seconds".format(task["mtime"]))
+                                    task.mtime = int(data if space_index == -1 else data[:space_index], 8)
+                                    self.logger.debug(f"[Receiver]: Mtime - {task.mtime} seconds")
                                     data = data[space_index + 1:]
 
-                                if self.program_features & USE_MODE_FIELD:
+                                if self._protocol_features & YMODEM.USE_MODE_FIELD:
                                     space_index = data.find(" ")
-                                    task["mode"] = int(data if space_index == -1 else data[:space_index])
-                                    self.logger.debug("[Receiver]: Mode - {}".format(task["mode"]))
+                                    task.mode = int(data if space_index == -1 else data[:space_index])
+                                    self.logger.debug(f"[Receiver]: Mode - {task.mode}")
                                     data = data[space_index + 1:]
 
-                                if self.program_features & USE_SN_FIELD:
+                                if self._protocol_features & YMODEM.USE_SN_FIELD:
                                     space_index = data.find(" ")
-                                    task["sn"] = int(data if space_index == -1 else data[:space_index])
-                                    self.logger.debug("[Receiver]: SN - {}".format(task["sn"]))
+                                    task.sn = int(data if space_index == -1 else data[:space_index])
+                                    self.logger.debug(f"[Receiver]: SN - {task.sn}")
 
-                                self.writer.write(ACK)
+                                self.write(ACK)
                                 break
 
                             # broken packet
@@ -501,19 +513,19 @@ class Modem(Protocol):
 
                     # Receive failed handler: ask for retransmission
                     while True:
-                        if not self.reader.read(1, timeout=1):
+                        if not self.read(1, timeout=1):
                             break
-                    self.writer.write(NAK)
+                    self.write(NAK)
                     self.logger.debug("[Receiver]: Requesting retransmission (NAK).")
 
-                    char = self.reader.read(1, timeout)
+                    char = self.read(1, timeout)
 
             # create file in saving folder
-            p = os.path.join(folder_path, task["name"])
+            p = os.path.join(path, task.name)
             try:
                 stream = open(p, "wb+")
-            except IOError as e:
-                self.logger.debug("[Receiver]: Cannot open the save path: %s.", p)
+            except IOError:
+                self.logger.debug(f"[Receiver]: Cannot open the save path: {p}.")
                 return False
 
             '''
@@ -527,21 +539,21 @@ class Modem(Protocol):
                     self.abort(timeout=timeout)
                     if stream:
                         stream.close()
-                    self.logger.debug("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
+                    self.logger.debug(f"[Receiver]: Aborted, the number of errors has reached {retry}.")
                     return False
                 elif crc_mode and error_count < (retry // 2):
-                    if not self.writer.write(CRC):
-                        self.logger.debug("[Receiver]: Failed to write CRC, sleep for {}s.".format(delay))
+                    if not self.write(CRC):
+                        self.logger.debug(f"[Receiver]: Failed to write CRC, sleep for {retry}s.")
                         time.sleep(delay)
                         error_count += 1
                 else:
                     crc_mode = 0
-                    if not self.writer.write(NAK):
-                        self.logger.debug("[Receiver]: Failed to write NAK, sleep for {}s.".format(delay))
+                    if not self.write(NAK):
+                        self.logger.debug(f"[Receiver]: Failed to write NAK, sleep for {delay}s.")
                         time.sleep(delay)
                         error_count += 1
 
-                char = self.reader.read(1, timeout=3)
+                char = self.read(1, timeout=3)
                 if char == SOH or char == STX:
                     break
                 elif char == CAN:
@@ -573,9 +585,9 @@ class Modem(Protocol):
                         self.logger.debug("[Receiver]: Set 1024 bytes as packet size.")
                         break
                     elif char == EOT:
-                        self.writer.write(ACK)
+                        self.write(ACK)
                         eot_received = True
-                        self.logger.debug("[Receiver]: %d - %s completed.", task_index+1, task["name"])
+                        self.logger.debug("[Receiver]: %d - %s completed.", task_index+1, task.name)
                         break
                     elif char == CAN:
                         if cancel_count == 0:
@@ -583,7 +595,7 @@ class Modem(Protocol):
                         else:
                             if stream:
                                 stream.close()
-                            self.logger.debug("[Receiver]: Cancel transfer (CAN) at data packet {} (seq {}).".format(success_packet_count, sequence))
+                            self.logger.debug(f"[Receiver]: Cancel transfer (CAN) at data packet {success_packet_count} (seq {sequence}).")
                             return False           
                     else:
                         error_count += 1
@@ -593,18 +605,18 @@ class Modem(Protocol):
                         self.abort(timeout=timeout)
                         if stream:
                             stream.close()
-                        self.logger.debug("[Receiver]: Aborted, the number of errors has reached {}.".format(retry))
+                        self.logger.debug(f"[Receiver]: Aborted, the number of errors has reached {retry}.")
                         return False
                 
                 if eot_received:
                     break
 
-                total_packet_count = math.ceil(task["total_length"] / packet_size)
+                total_packet_count = math.ceil(task.total / packet_size)
 
-                seq1 = self.reader.read(1, timeout)
+                seq1 = self.read(1, timeout)
                 if seq1:
                     seq1 = ord(seq1)
-                    seq2 = self.reader.read(1, timeout)
+                    seq2 = self.read(1, timeout)
                     if seq2:
                         seq2 = 0xff - ord(seq2)
                 else:
@@ -614,12 +626,12 @@ class Modem(Protocol):
                 if not (seq1 == seq2 == sequence):
                     self.logger.debug("[Receiver]: Expected seq %d but got (seq1 %r, seq2 %r).", sequence, seq1, seq2)
                     # skip this packet
-                    self.reader.read(packet_size + 1 + crc_mode)
+                    self.read(packet_size + 1 + crc_mode)
                     self.logger.debug("[Receiver]: Dropped the broken packet.")
                 
                 # Packet received
                 else:
-                    data = self.reader.read(packet_size + 1 + crc_mode, timeout)
+                    data = self.read(packet_size + 1 + crc_mode, timeout)
 
                     if data and len(data) == (packet_size + 1 + crc_mode):
                         valid, data = self._verify_recv_checksum(crc_mode, data)
@@ -627,34 +639,34 @@ class Modem(Protocol):
                         # Write the original data to the target file
                         if valid:
                             success_packet_count += 1
-                            self.logger.debug("[Receiver]: Received data packet %d.", sequence)
+                            self.logger.debug(f"[Receiver]: Received data packet {sequence}.")
 
                             valid_length = packet_size
 
                             # The last package adjusts the valid data length according to the file length
-                            remaining_length = task["total_length"] - task["received_length"]
+                            remaining_length = task.total - task.received
                             if (remaining_length > 0):
                                 valid_length = min(valid_length, remaining_length)
                             data = data[:valid_length]
 
-                            task["received_length"] += len(data)
+                            task.received += len(data)
 
                             try:
                                 stream.write(data)
                             except Exception as e:
                                 stream.close()
-                                self.logger.debug("[Receiver]: Failed to write data packet %d to file.", sequence)
+                                self.logger.debug(f"[Receiver]: Failed to write data packet {sequence} to file.")
                                 return False
 
-                            self.logger.debug("[Receiver]: Successfully write data packet %d to file.", sequence)
+                            self.logger.debug(f"[Receiver]: Successfully write data packet {sequence} to file.")
 
                             if callable(callback):
-                                callback(task_index, task["name"], total_packet_count, success_packet_count, error_packet_count)
+                                callback(task_index, task.name, total_packet_count, success_packet_count, error_packet_count)
 
-                            self.writer.write(ACK)
+                            self.write(ACK)
 
                             sequence = (sequence + 1) % 0x100
-                            char = self.reader.read(1, timeout)
+                            char = self.read(1, timeout)
                             continue
 
                         # broken packet
@@ -663,7 +675,7 @@ class Modem(Protocol):
                             self.logger.debug("[Receiver]: Received broken data packet.")
 
                             if callable(callback):
-                                callback(task_index, task["name"], total_packet_count, success_packet_count, error_packet_count)
+                                callback(task_index, task.name, total_packet_count, success_packet_count, error_packet_count)
 
                     # bad read
                     else:
@@ -671,15 +683,16 @@ class Modem(Protocol):
 
                 # Receive failed handler: ask for retransmission
                 while True:
-                    if not self.reader.read(1, timeout=1):
+                    if not self.read(1, timeout = 1):
                         break
-                self.writer.write(NAK)
+                self.write(NAK)
                 self.logger.debug("[Receiver]: Requested retransmission (NAK).")
 
-                char = self.reader.read(1, timeout)
+                char = self.read(1, timeout)
 
             if stream:
                 stream.close()
+        
 
     def _verify_recv_checksum(self, crc_mode, data):
         if crc_mode:
@@ -687,7 +700,7 @@ class Modem(Protocol):
             remote_sum = (_checksum[0] << 8) + _checksum[1]
             data = data[:-2]
 
-            local_sum = self.calc_crc(data)
+            local_sum = calc_crc(data)
             valid = bool(remote_sum == local_sum)
             if not valid:
                 self.logger.debug("[Receiver]: CRC verification failed. Sender: %04x, Receiver: %04x.", remote_sum, local_sum)
@@ -696,57 +709,72 @@ class Modem(Protocol):
             remote_sum = _checksum[0]
             data = data[:-1]
 
-            local_sum = self.calc_checksum(data)
+            local_sum = calc_checksum(data)
             valid = remote_sum == local_sum
             if not valid:
                 self.logger.debug("[Receiver]: CRC verification failed. Sender: %02x, Receiver: %02x.", remote_sum, local_sum)
         return valid, data
+    
 
-    def calc_checksum(self, data, checksum=0):
-        if platform.python_version_tuple() >= ('3', '0', '0'):
-            return (sum(data) + checksum) % 256
-        else:
-            return (sum(map(ord, data)) + checksum) % 256
+class _ModemFile:
+    def __init__(self, path: Optional[str] = None):
+        self._path = path or ""
+        self._name = os.path.basename(path) if path else ""
+        self._total_length = os.path.getsize(path) if path else 0
+        self._mtime = os.path.getmtime(path) if path else 0
+        self._received_length = 0
+        self._mode = 0
+        self._sn = 0
 
-    # For CRC algorithm
-    crctable = [
-        0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
-        0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
-        0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
-        0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
-        0x2462, 0x3443, 0x0420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485,
-        0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
-        0x3653, 0x2672, 0x1611, 0x0630, 0x76d7, 0x66f6, 0x5695, 0x46b4,
-        0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
-        0x48c4, 0x58e5, 0x6886, 0x78a7, 0x0840, 0x1861, 0x2802, 0x3823,
-        0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
-        0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0x0a50, 0x3a33, 0x2a12,
-        0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
-        0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0x0c60, 0x1c41,
-        0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
-        0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0x0e70,
-        0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
-        0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f,
-        0x1080, 0x00a1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
-        0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e,
-        0x02b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
-        0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d,
-        0x34e2, 0x24c3, 0x14a0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-        0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c,
-        0x26d3, 0x36f2, 0x0691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
-        0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab,
-        0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x08e1, 0x3882, 0x28a3,
-        0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a,
-        0x4a75, 0x5a54, 0x6a37, 0x7a16, 0x0af1, 0x1ad0, 0x2ab3, 0x3a92,
-        0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9,
-        0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
-        0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
-        0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
-    ]
+    @property
+    def path(self) -> str:
+        return self._path
 
-    # CRC-16-CCITT
-    def calc_crc(self, data, crc=0):
-        for char in bytearray(data):
-            crctbl_idx = ((crc >> 8) ^ char) & 0xff
-            crc = ((crc << 8) ^ self.crctable[crctbl_idx]) & 0xffff
-        return crc & 0xffff
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    @name.setter
+    def name(self, v: str):
+        self._name = v
+
+    @property
+    def total(self) -> int:
+        return self._total_length
+    
+    @total.setter
+    def total(self, v: int):
+        self._total_length = v
+
+    @property
+    def received(self) -> int:
+        return self._received_length
+    
+    @received.setter
+    def received(self, v: int):
+        self._received_length = v
+
+    @property
+    def mtime(self) -> int:
+        return self._mtime
+    
+    @mtime.setter
+    def mtime(self, v: int):
+        self._mtime = v
+
+    @property
+    def mode(self) -> int:
+        return self._mode
+    
+    @mode.setter
+    def mode(self, v: int):
+        self._mode = v
+
+    @property
+    def sn(self) -> int:
+        return self._sn
+    
+    @sn.setter
+    def sn(self, v: int):
+        self._sn = v
+

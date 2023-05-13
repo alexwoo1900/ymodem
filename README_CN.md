@@ -30,64 +30,54 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 ## 快速上手
 
 ```python
-from Modem import Modem
+from ymodem.Socket import ModemSocket
 
-'''
-Sender
-'''
-# define read function for sender
-def sender_read(size, timeout=3):
-    pass
+# define read function
+def read(size, timeout=3):
+    # implementation
 
-# define write function for sender
-def sender_write(data, timeout=3):
-    pass
+# define write function
+def write(data, timeout=3):
+    # implementation
 
 # create sender
-sender = Modem(sender_read, sender_write)
+cli = ModemSocket(read, write)
 
 # send multi files
-sender.send([file_path1, file_path2, file_path3 ...])
-
-'''
-Receiver
-'''
-
-# define read function for receiver
-def receiver_read(size, timeout=3):
-    pass
-
-# define write function for receiver
-def receiver_write(data, timeout=3):
-    pass
-
-# create receiver
-receiver = Modem(receiver_read, receiver_write)
+cli.send([file_path1, file_path2, file_path3 ...])
 
 # receive multi files
-receiver.recv(folder_path)
+cli.recv(folder_path)
 ```
+
+更详细的使用方式见FileReceiver.py与FileSender.py文件。
 
 ## API
 
 ### 创建MODEM对象
 
 ```python
-def __init__(self, reader, writer, mode='ymodem1k', program="rzsz")
+def __init__(self, 
+             read: Callable[[int, Optional[float]], Any], 
+             write: Callable[[Union[bytes, bytearray], Optional[float]], Any], 
+             protocol_type: int = ProtocolType.YMODEM, 
+             packet_size: int = 1024,
+             style_id: int = _psm.get_available_styles()[0]):
 ```
-- reader： 读对象或者读函数。
-- writer： 写对象或者写函数。
-- mode： 默认使用数据长度为1k字节的YMODEM模式。
-- program： YMODEM的标准（不同标准有不同特性）。
+- protocol_type: 协议类型，参见Protocol.py
+- packet_size: 单个包大小，128/1024字节，根据protocol style的不同可能会进行调整
+- style_id: 协议风格，不同的风格对功能特性有不同的支持
 
 ### 发送数据
 
 ```python
-def send(self, file_paths, retry=10, timeout=10, callback=None):
+def send(self, 
+         paths: List[str], 
+         retry: int = 10, 
+         timeout: float = 10, 
+         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+        ) -> bool:
 ```
-- file_paths： 文件路径列表。
-- retry： 最大重传次数。
-- timeout： reader和writer的超时时间。
 - callback： 回调函数，见下表。
 
     参数（按顺序） | 描述
@@ -102,22 +92,16 @@ def send(self, file_paths, retry=10, timeout=10, callback=None):
 ### 接收数据
 
 ```python
-def recv(self, folder_path, crc_mode=1, retry=10, timeout=10, delay=1, callback=None)
+def recv(self, 
+         path: str, 
+         crc_mode: int = 1, 
+         retry: int = 10, 
+         timeout: float = 10, 
+         delay: float = 1, 
+         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+        ) -> bool:
 ```
-- folder_path： 保存文件夹路径。
-- crc_mode： 由接收者指定的校验模式。
-- retry： 最大重传次数。
-- timeout： reader和writer的超时时间。
-- delay： 延迟时间。
-- callback： 回调函数，见下表。
-
-    参数（按顺序） | 描述
-    -|-
-    task index | 任务索引
-    task (file) name | 任务（文件）名称
-    total packets | 总包数
-    success packets | 成功包数
-    failed packets | 失败包数
+- callback： 回调函数，格式同send的callback。
 
 ## 调试
 
@@ -128,10 +112,9 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 ```
 
 ## 更新日志
-### v1.3 (2022/11/21 14:00 +00:00)
+### v1.4 (2023/05/13 14:00 +00:00)
 
-- 支持多文件传输
-- 简化函数接口
+- 重写了部分参数处理的逻辑
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)

@@ -4,7 +4,7 @@ import math
 import time
 import serial
 import logging
-from ymodem.Modem import Modem
+from ymodem.Socket import ModemSocket
 
 class TaskProgressBar:
     def __init__(self):
@@ -30,7 +30,7 @@ class TaskProgressBar:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
     serial_io = serial.Serial()
     serial_io.port = "COM1"
@@ -53,7 +53,7 @@ if __name__ == '__main__':
         serial_io.writeTimeout = timeout
         return serial_io.write(data)
 
-    sender = Modem(sender_read, sender_write)
+    sender = ModemSocket(sender_read, sender_write)
 
     os.chdir(sys.path[0])
     file_path1 = os.path.abspath('local/sample.stl')
