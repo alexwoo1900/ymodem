@@ -2,7 +2,6 @@
 
 The YMODEM project is based on XMODEM implementation written by tehmaze. It is also compatible with XMODEM mode.
 
-[![Build Status](https://www.travis-ci.org/alexwoo1900/ymodem.svg?branch=master)](https://www.travis-ci.org/alexwoo1900/ymodem)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://opensource.org/licenses/MIT)
 
 
