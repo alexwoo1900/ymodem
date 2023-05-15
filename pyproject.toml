@@ -10,6 +10,7 @@ requires-python = ">=3.7"
 classifiers = [
 ]
 dependencies = [
+    "ordered-set>=4.1.0",
 ]
 version = "1.4"
 
