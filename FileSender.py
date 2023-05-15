@@ -30,7 +30,7 @@ class TaskProgressBar:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
 
     serial_io = serial.Serial()
     serial_io.port = "COM1"

@@ -33,15 +33,15 @@ Interact with SecureCRT as Finder
 ```python
 from ymodem.Socket import ModemSocket
 
-# define read function
-def read(size, timeout=3):
+# define read
+def read(size, timeout = 3):
     # implementation
 
-# define write function
-def write(data, timeout=3):
+# define write
+def write(data, timeout = 3):
     # implementation
 
-# create sender
+# create socket
 cli = ModemSocket(read, write)
 
 # send multi files

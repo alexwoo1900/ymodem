@@ -44,7 +44,7 @@ def calc_crc(data, crc = 0):
     return crc & 0xffff
 
 def calc_checksum(data, checksum = 0):
-    if sys.version_info() >= (3, 0, 0):
+    if sys.version_info >= (3, 0, 0):
         return (sum(data) + checksum) % 256
     else:
         return (sum(map(ord, data)) + checksum) % 256

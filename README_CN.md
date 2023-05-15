@@ -32,15 +32,15 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 ```python
 from ymodem.Socket import ModemSocket
 
-# define read function
+# define read
 def read(size, timeout=3):
     # implementation
 
-# define write function
+# define write
 def write(data, timeout=3):
     # implementation
 
-# create sender
+# create socket
 cli = ModemSocket(read, write)
 
 # send multi files
