@@ -19,14 +19,171 @@ class ProtocolType(IntEnum):
             cls.ZMODEM
         ]
     
+class ZMODEM:
+
+    ZPAD                = '*'
+    ZDLE                = 24        # 0o30
+    ZDLEE               = ZDLE ^ 64 # 0o100
+    ZBIN                = 'A'
+    ZHEX                = 'B'
+    ZBIN32              = 'C'
+
+    #########################################
+    #
+    #             Frame type
+    #
+    #########################################
+
+    ZRQINIT             = 0
+    ZRINIT              = 1
+    ZSINIT              = 2
+    ZACK                = 3
+    ZFILE               = 4
+    ZSKIP               = 5
+    ZNAK                = 6
+    ZABORT              = 7
+    ZFIN                = 8
+    ZRPOS               = 9
+    ZDATA               = 10
+    ZEOF                = 11
+    ZFERR               = 12
+    ZCRC                = 13
+    ZCHALLENGE          = 14
+    ZCOMPL              = 15
+    ZCAN                = 16
+    ZFREECNT            = 17
+    ZCOMMAND            = 18
+    ZSTDERR             = 19
+
+    #########################################
+    #
+    #              ZDLE sequence
+    #
+    #########################################
+
+    ZCRCE               = 'h'
+    ZCRCG               = 'i'
+    ZCRCQ               = 'j'
+    ZCRCW               = 'k'
+    ZRUB0               = 'l'
+    ZRUB1               = 'm'
+
+    #########################################
+    #
+    #              Byte position
+    #
+    #########################################
+
+    # Byte positions within header array
+    ZF0                 = 3
+    ZF1                 = 2
+    ZF2                 = 1
+    ZF3                 = 0
+    ZP0                 = 0
+    ZP1                 = 1
+    ZP2                 = 2
+    ZP3                 = 3
+
+    #########################################
+    #
+    #                 ZRINIT
+    #
+    #########################################
+
+    # Bit Masks for ZRINIT flags byte ZF0
+    CANFDX              = 0b00000001
+    CANOVIO             = 0b00000010
+    CANBRK              = 0b00000100
+    CANCRY              = 0b00001000
+    CANLZW              = 0b00010000
+    CANFC32             = 0b00100000
+    ESCCTL              = 0b01000000
+    ESC8                = 0b10000000
+
+    # Bit Masks for ZRINIT flags byte ZF1
+    ZF1_CANVHDR         = 0b00000001
+    ZF1_TIMESYNC        = 0b00000010
+
+    #########################################
+    #
+    #                 ZSINIT
+    #
+    #########################################
+
+    # Parameters for ZSINIT frame
+    ZATTNLEN            = 32
+
+    # Bit Masks for ZSINIT flags byte ZF0
+    TESCCTL             = 64    # 0o100
+    TESC8               = 128   # 0o200
+
+    #########################################
+    #
+    #                 ZFILE
+    #
+    #########################################
+
+    ZCBIN               = 1
+    ZCNL                = 2
+    ZCRESUM             = 3
+
+    #########################################
+    #
+    #                 Management
+    #
+    #########################################
+
+    # Management include options, one of these ored in ZF1
+    ZF1_ZMSKNOLOC       = 0x80
+
+    # Management options, one of these ored in ZF1
+    ZF1_ZMMASK          = 0x1f
+    ZF1_ZMNEWL          = 1
+    ZF1_ZMCRC           = 2
+    ZF1_ZMAPND          = 3
+    ZF1_ZMCLOB          = 4
+    ZF1_ZMNEW           = 5
+    ZF1_ZMDIFF          = 6
+    ZF1_ZMPROT          = 7
+    ZF1_ZMCHNG          = 8
+
+    #########################################
+    #
+    #                 Transport
+    #
+    #########################################
+
+    # Transport options, one of these in ZF2
+    ZTLZW               = 1
+    ZTCRYPT             = 2
+    ZTRLE               = 3
+
+    # Extended options for ZF3, bit encoded
+    ZXSPARS             = 64
+
+    #########################################
+    #
+    #                 ZCOMMAND
+    #
+    #########################################
+
+    ZCACK1              = 1
+    
 class YMODEM:
 
-    USE_LENGTH_FIELD    = 0b00100000
-    USE_DATE_FIELD      = 0b00010000
-    USE_MODE_FIELD      = 0b00001000
-    USE_SN_FIELD        = 0b00000100
-    ALLOW_1K_PACKET     = 0b00000010
-    ALLOW_YMODEM_G      = 0b00000001
+    #########################################
+    #
+    #                 Feature
+    #
+    #########################################
+
+    # Bit Masks for YMODEM features
+    USE_LENGTH_FIELD    = 0b00000001
+    USE_DATE_FIELD      = 0b00000010
+    USE_MODE_FIELD      = 0b00000100
+    USE_SN_FIELD        = 0b00001000
+    ALLOW_1K_PACKET     = 0b00010000
+    ALLOW_YMODEM_G      = 0b00100000
 
     @classmethod
     def features(cls) -> List[int]:

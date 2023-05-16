@@ -5,7 +5,7 @@ import os
 import time
 from typing import Any, Callable, List, Optional, Union
 
-from ymodem.Checksum import calc_crc, calc_checksum
+from ymodem.CRC import calc_crc16, calc_checksum
 from ymodem.Platform import Platform
 from ymodem.Protocol import ProtocolType, ProtocolStyleManagement, YMODEM
 
@@ -348,7 +348,7 @@ class ModemSocket(Channel):
     def _make_send_checksum(self, crc_mode, data):
         _bytes = []
         if crc_mode:
-            crc = calc_crc(data)
+            crc = calc_crc16(data)
             _bytes.extend([crc >> 8, crc & 0xff])
         else:
             crc = calc_checksum(data)
@@ -701,7 +701,7 @@ class ModemSocket(Channel):
             remote_sum = (_checksum[0] << 8) + _checksum[1]
             data = data[:-2]
 
-            local_sum = calc_crc(data)
+            local_sum = calc_crc16(data)
             valid = bool(remote_sum == local_sum)
             if not valid:
                 self.logger.debug("[Receiver]: CRC verification failed. Sender: %04x, Receiver: %04x.", remote_sum, local_sum)
