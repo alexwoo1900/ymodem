@@ -96,7 +96,8 @@ class ModemSocket(Channel):
         param callback: 
         '''
         
-        tasks = []
+        tasks = []      # type: List[_ModemFile]
+        stream = None   # type: BufferedReader
 
         for path in paths:
             if os.path.isfile(path):

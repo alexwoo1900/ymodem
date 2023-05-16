@@ -81,9 +81,11 @@ class ProtocolStyle:
     def is_available(self) -> bool:
         return self._enabled
     
-    def get_latest_version(self) -> Version:
-        # may throw ValueError
-        return max(self._registered_versions)
+    def get_latest_version(self) -> Optional[Version]:
+        if bool(self._registered_versions):
+            return max(self._registered_versions)
+        else:
+            return None
         
     def get_core(self, version: Version) -> Optional[_ProtocolStyle]:
         if str(version) in self._cores:
@@ -93,7 +95,7 @@ class ProtocolStyle:
 
     def register(self, versions: List[Version]) -> None:
         for version in versions:
-            if str(version) not in self._cores:
+            if version not in self._registered_versions:
                 self._cores[str(version)] = _ProtocolStyle()
                 self._registered_versions.add(version)
             else:
@@ -102,22 +104,24 @@ class ProtocolStyle:
 
     def deprecate(self, versions: List[Version]) -> None:
         for version in versions:
-            if str(version) in self._cores:
+            if version in self._registered_versions:
                 self._deprecated_versions.add(version)
 
     def unregister(self, versions: List[Version]) -> None:
         for version in versions:
-            if str(version) in self._cores:
+            if version in self._registered_versions:
                 del self._cores[str(version)]
                 self._registered_versions.discard(version)
                 # gc.collect()
 
     def select(self, version: Optional[Version] = None) -> None:
         if not version:
-            self._target_version = self.get_latest_version()
-        elif not bool(self._cores):
-            raise IndexError("No registered style!") 
-        elif str(version) not in self._cores:
+            version = self.get_latest_version()
+            if version:
+                self._target_version = version
+            else:
+                raise IndexError("No registered style!") 
+        elif version not in self._registered_versions:
             raise KeyError(f"Style {self.name} - {str(version)} has not registered yet!")
         elif version in self._deprecated_versions:
             raise KeyError(f"Style {self.name} - {str(version)} has been deprecated!")

@@ -50,7 +50,7 @@ cli.send([file_path1, file_path2, file_path3 ...])
 cli.recv(folder_path)
 ```
 
-For more detailed usage, please refer to the FileReceiver. py and FileSender. py files.
+For more detailed usage, please refer to the demo/FileReceiver.py and demo/FileSender.py files.
 
 ## API
 

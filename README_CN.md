@@ -49,7 +49,7 @@ cli.send([file_path1, file_path2, file_path3 ...])
 cli.recv(folder_path)
 ```
 
-更详细的使用方式见FileReceiver.py与FileSender.py文件。
+更详细的使用方式见demo/FileReceiver.py与demo/FileSender.py文件。
 
 ## API
 
