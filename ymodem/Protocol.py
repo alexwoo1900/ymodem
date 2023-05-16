@@ -20,15 +20,16 @@ class ProtocolType(IntEnum):
         ]
     
 class YMODEM:
-    USE_LENGTH_FIELD    = 0b100000
-    USE_DATE_FIELD      = 0b010000
-    USE_MODE_FIELD      = 0b001000
-    USE_SN_FIELD        = 0b000100
-    ALLOW_1K_PACKET     = 0b000010
-    ALLOW_YMODEM_G      = 0b000001
+
+    USE_LENGTH_FIELD    = 0b00100000
+    USE_DATE_FIELD      = 0b00010000
+    USE_MODE_FIELD      = 0b00001000
+    USE_SN_FIELD        = 0b00000100
+    ALLOW_1K_PACKET     = 0b00000010
+    ALLOW_YMODEM_G      = 0b00000001
 
     @classmethod
-    def all_features(cls) -> List[int]:
+    def features(cls) -> List[int]:
         return [
             cls.USE_LENGTH_FIELD,
             cls.USE_DATE_FIELD,
@@ -36,6 +37,18 @@ class YMODEM:
             cls.USE_SN_FIELD,
             cls.ALLOW_1K_PACKET,
             cls.ALLOW_YMODEM_G
+        ]
+    
+    @classmethod
+    def full_features(cls) -> List[int]:
+        PROTOCOL_TYPE = ProtocolType.YMODEM << 8
+        return [
+            PROTOCOL_TYPE + cls.USE_LENGTH_FIELD,
+            PROTOCOL_TYPE + cls.USE_DATE_FIELD,
+            PROTOCOL_TYPE + cls.USE_MODE_FIELD,
+            PROTOCOL_TYPE + cls.USE_SN_FIELD,
+            PROTOCOL_TYPE + cls.ALLOW_1K_PACKET,
+            PROTOCOL_TYPE + cls.ALLOW_YMODEM_G
         ]
     
 class _ProtocolStyle:

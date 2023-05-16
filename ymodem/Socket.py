@@ -177,7 +177,7 @@ class ModemSocket(Channel):
                         data += (" 0").encode("utf-8")
 
                 # Optional field: Serial Number
-                if self._protocol_features & YMODEM.USE_MODE_FIELD:
+                if self._protocol_features & YMODEM.USE_SN_FIELD:
                     data += (" 0").encode("utf-8")
 
                 data = data.ljust(self._packet_size, b"\x00")
