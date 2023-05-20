@@ -60,10 +60,12 @@ def __init__(self,
              read: Callable[[int, Optional[float]], Any], 
              write: Callable[[Union[bytes, bytearray], Optional[float]], Any], 
              protocol_type: int = ProtocolType.YMODEM, 
+             protocol_type_options: List[str] = [],
              packet_size: int = 1024,
              style_id: int = _psm.get_available_styles()[0]):
 ```
 - protocol_type: 协议类型，参见Protocol.py
+- protocol_type_options: 协议选项，如g表示YMODEM协议中的YMODEM-G功能。
 - packet_size: 单个包大小，128/1024字节，根据protocol style的不同可能会进行调整
 - style_id: 协议风格，不同的风格对功能特性有不同的支持
 
@@ -72,9 +74,7 @@ def __init__(self,
 ```python
 def send(self, 
          paths: List[str], 
-         retry: int = 10, 
-         timeout: float = 10, 
-         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+         callback: Optional[Callable[[int, str, int, int], None]] = None
         ) -> bool:
 ```
 - callback： 回调函数，见下表。
@@ -85,7 +85,6 @@ def send(self,
     task (file) name | 任务（文件）名称
     total packets | 总包数
     success packets | 成功包数
-    failed packets | 失败包数
 
 
 ### 接收数据
@@ -93,11 +92,7 @@ def send(self,
 ```python
 def recv(self, 
          path: str, 
-         crc_mode: int = 1, 
-         retry: int = 10, 
-         timeout: float = 10, 
-         delay: float = 1, 
-         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+         callback: Optional[Callable[[int, str, int, int], None]] = None
         ) -> bool:
 ```
 - callback： 回调函数，格式同send的callback。
@@ -111,9 +106,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 ```
 
 ## 更新日志
-### v1.4 (2023/05/13 14:00 +00:00)
+### v1.5 (2023/05/20 11:00 +00:00)
 
-- 重写了部分参数处理的逻辑
+- 重写了send方法和recv方法
+- 支持YMODEM-G模式。
+    基于pyserial的YMODEM-G的成功率取决于用户的操作系统，经过测试，在不加延时的情况下成功率非常低。
 
 ## 许可证
 [MIT许可证](https://opensource.org/licenses/MIT)

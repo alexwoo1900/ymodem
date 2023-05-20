@@ -61,10 +61,12 @@ def __init__(self,
              read: Callable[[int, Optional[float]], Any], 
              write: Callable[[Union[bytes, bytearray], Optional[float]], Any], 
              protocol_type: int = ProtocolType.YMODEM, 
+             protocol_type_options: List[str] = [],
              packet_size: int = 1024,
              style_id: int = _psm.get_available_styles()[0]):
 ```
 - protocol_type: Protocol type, see Protocol.py
+- protocol_type_options: such as g representing the YMODEM-G in the YMODEM protocol.
 - packet_size: The size of a single packet, 128/1024 bytes, may be adjusted depending on the protocol style
 - style_id: Protocol style, different styles have different support for functional features
 
@@ -73,9 +75,7 @@ def __init__(self,
 ```python
 def send(self, 
          paths: List[str], 
-         retry: int = 10, 
-         timeout: float = 10, 
-         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+         callback: Optional[Callable[[int, str, int, int], None]] = None
         ) -> bool:
 ```
 
@@ -87,18 +87,13 @@ def send(self,
     task (file) name | name of the file
     total packets | number of packets plan to send
     success packets | number of packets successfully sent
-    failed packets | number of packets failed to send
 
 ### Receive files
 
 ```python
 def recv(self, 
          path: str, 
-         crc_mode: int = 1, 
-         retry: int = 10, 
-         timeout: float = 10, 
-         delay: float = 1, 
-         callback: Optional[Callable[[int, str, int, int, int], None]] = None
+         callback: Optional[Callable[[int, str, int, int], None]] = None
         ) -> bool:
 ```
 
@@ -113,9 +108,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 ```
 
 ## Changelog
-### v1.4 (2023/05/13 14:00 +00:00)
+### v1.5 (2023/05/20 11:00 +00:00)
 
-- Rewritten the logic for handling some parameters
+- Rewritten send() and recv()
+- Support YMODEM-G. 
+    The success rate of YMODEM-G based on pyserial depends on the user's OS, and after testing, the success rate is very low without any delay.
 
 ## License 
 [MIT License](https://opensource.org/licenses/MIT)

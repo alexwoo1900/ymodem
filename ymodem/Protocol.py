@@ -19,6 +19,10 @@ class ProtocolType(IntEnum):
             cls.ZMODEM
         ]
     
+class ProtocolSubType(IntEnum):
+    YMODEM_BATCH_FILE_TRANSMISSION = 0,
+    YMODEM_G_FILE_TRANSMISSION = 1
+    
 class ZMODEM:
 
     ZPAD                = '*'
@@ -168,8 +172,29 @@ class ZMODEM:
     #########################################
 
     ZCACK1              = 1
+
+class XMODEM:
+
+    # Bit Masks for XMODEM features
+    USE_CHECKSUM        = 0b00000001
+    USE_CRC             = 0b00000010
+    ALLOW_1K_PACKET     = 0b00010000
     
 class YMODEM:
+
+    #########################################
+    #
+    #                 SYMBOL
+    #
+    #########################################
+
+    SOH                 = b'\x01'
+    STX                 = b'\x02'
+    EOT                 = b'\x04'
+    ACK                 = b'\x06'
+    NAK                 = b'\x15'
+    CAN                 = b'\x18'
+    CRC                 = b'\x43'
 
     #########################################
     #
@@ -342,30 +367,35 @@ class ProtocolStyleManagement:
         p = ProtocolStyle("Unix rz/sz")
         p.register(["1.0.0"])
         p.select()
+        p.update_protocol_features(ProtocolType.XMODEM, XMODEM.USE_CHECKSUM | XMODEM.USE_CRC | XMODEM.ALLOW_1K_PACKET)
         p.update_protocol_features(ProtocolType.YMODEM, YMODEM.USE_LENGTH_FIELD | YMODEM.USE_DATE_FIELD | YMODEM.USE_MODE_FIELD | YMODEM.ALLOW_1K_PACKET)
         self._registered_styles[p.id] = p
 
         p = ProtocolStyle("VMS rb/sb")
         p.register(["1.0.0"])
         p.select()
+        p.update_protocol_features(ProtocolType.XMODEM, XMODEM.USE_CHECKSUM | XMODEM.USE_CRC | XMODEM.ALLOW_1K_PACKET)
         p.update_protocol_features(ProtocolType.YMODEM, YMODEM.USE_LENGTH_FIELD | YMODEM.ALLOW_1K_PACKET)
         self._registered_styles[p.id] = p
 
         p = ProtocolStyle("Pro-YAM")
         p.register(["1.0.0"])
         p.select()
+        p.update_protocol_features(ProtocolType.XMODEM, XMODEM.USE_CHECKSUM | XMODEM.USE_CRC | XMODEM.ALLOW_1K_PACKET)
         p.update_protocol_features(ProtocolType.YMODEM, YMODEM.USE_LENGTH_FIELD | YMODEM.USE_DATE_FIELD | YMODEM.USE_SN_FIELD | YMODEM.ALLOW_1K_PACKET | YMODEM.ALLOW_YMODEM_G)
         self._registered_styles[p.id] = p
 
         p = ProtocolStyle("CP/M YAM")
         p.register(["1.0.0"])
         p.select()
+        p.update_protocol_features(ProtocolType.XMODEM, XMODEM.USE_CHECKSUM | XMODEM.USE_CRC | XMODEM.ALLOW_1K_PACKET)
         p.update_protocol_features(ProtocolType.YMODEM, YMODEM.ALLOW_1K_PACKET)
         self._registered_styles[p.id] = p
 
         p = ProtocolStyle("KMD/IMP")
         p.register(["1.0.0"])
         p.select()
+        p.update_protocol_features(ProtocolType.XMODEM, XMODEM.USE_CHECKSUM | XMODEM.USE_CRC | XMODEM.ALLOW_1K_PACKET)
         p.update_protocol_features(ProtocolType.YMODEM, YMODEM.ALLOW_1K_PACKET)
         self._registered_styles[p.id] = p
 
