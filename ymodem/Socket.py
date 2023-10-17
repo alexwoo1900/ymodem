@@ -54,14 +54,14 @@ class ModemSocket(Channel):
     def read(self, size: int, timeout: float = 1) -> Any:
         try:
             return self._read(size, timeout)
-        except:
+        except Exception:
             self.logger.warning("[Modem]: Read timeout!")
             return None
     
     def write(self, data: Union[bytes, bytearray], timeout: float = 1) -> Any:
         try:
             return self._write(data, timeout)
-        except:
+        except Exception:
             self.logger.warning("[Modem]: Write timeout!")
             return None
     
@@ -332,7 +332,7 @@ class ModemSocket(Channel):
                 while True:
                     try:
                         data = stream.read(self._packet_size)
-                    except:
+                    except Exception:
                         self.logger.error("[Sender]: Failed to read file, abort and exit!")
                         self._abort()
                         self.logger.debug("[Sender]: CAN ->")
@@ -640,7 +640,7 @@ class ModemSocket(Channel):
                                     self.write(ACK)
                                     self.logger.debug("[Receiver]: ACK ->")
                                 break
-                            except:
+                            except IOError:
                                 self.logger.error(f"[Receiver]: Cannot open the save path: {p}, abort and exit!")
                                 self._abort()
                                 self.logger.debug("[Receiver]: CAN ->")
@@ -778,7 +778,7 @@ class ModemSocket(Channel):
 
                                 try:
                                     stream.write(data)
-                                except:
+                                except Exception:
                                     self.logger.error(f"[Receiver]: Failed to write data packet {sequence} to file, abort and exit!")
                                     self._abort()
                                     self.logger.debug("[Receiver]: CAN ->")
