@@ -33,11 +33,11 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/o-murphy/ymodem"
-"Bug Reports" = "https://github.com/o-murphy/ymodem/issues"
+"Homepage" = "https://github.com/alexwoo1900/ymodem"
+"Bug Reports" = "https://github.com/alexwoo1900/ymodem/issues"
 #"Funding" = "https://donate.pypi.org"
 #"Say Thanks!" = ""
-"Source" = "https://github.com/o-murphy/ymodem"
+"Source" = "https://github.com/alexwoo1900/ymodem"
 
 
 [tool.setuptools]
