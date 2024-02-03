@@ -4,15 +4,44 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ymodem"
-description = "Ymodem implementation"
+version = "1.5"
+
+description = "Ymodem Python implementation"
+
 readme = "README.md"
 requires-python = ">=3.7"
+keywords = ["pyserial", "serial", "xmodem", "ymodem", "python", "python3"]
 classifiers = [
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
     "ordered-set>=4.1.0",
+    "pyserial"
 ]
-version = "1.5"
+
+[project.urls]
+"Homepage" = "https://github.com/o-murphy/ymodem"
+"Bug Reports" = "https://github.com/o-murphy/ymodem/issues"
+#"Funding" = "https://donate.pypi.org"
+#"Say Thanks!" = ""
+"Source" = "https://github.com/o-murphy/ymodem"
+
 
 [tool.setuptools]
 packages = ["ymodem"]
+
+[project.scripts]
+ymodem = "ymodem.__main__:main"
