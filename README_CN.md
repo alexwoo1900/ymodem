@@ -6,6 +6,19 @@
 
 README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) | [简体中文](https://github.com/alexwoo1900/ymodem/blob/master/README_CN.md)
 
+- [**安装**](#安装)
+- [**使用方法**](#使用方法)
+  - [命令行](#命令行) 
+    - [发送文件](#发送文件)
+    - [接收文件](#接收文件)
+  - [源代码](#源代码)
+  - [API](#api)
+    - [创建MODEM对象](#创建MODEM对象)
+    - [发送数据](#发送数据)
+    - [接收数据](#接收数据)
+- [调试](#调试)
+- [更新日志](#更新日志)
+- [许可证](#许可证)
 
 ## 功能演示
 
@@ -26,7 +39,37 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 作为接收者与SecureCRT交互
 ![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/receiver.gif)
 
-## 快速上手
+## 安装
+```Bash
+pip install ymodem
+```
+
+## 使用方法
+
+### 命令行
+
+```Bash
+# To get help
+ymodem -h
+# or
+python -m ymodem -h
+```
+
+#### 发送文件
+```Bash
+ymodem send ./file.bin ./file2.bin -p COM4 -b 115200
+# or
+python -m ymodem send ./file.bin ./file2.bin -p COM4 -b 115200
+```
+
+#### 接收文件
+```Bash
+ymodem recv ./ -p COM4 -b 115200
+# or
+python -m ymodem recv ./ -p COM4 -b 115200
+```
+
+### 源代码
 
 ```python
 from ymodem.Socket import ModemSocket
@@ -51,9 +94,9 @@ cli.recv(folder_path)
 
 更详细的使用方式见demo/FileReceiver.py与demo/FileSender.py文件。
 
-## API
+### API
 
-### 创建MODEM对象
+#### 创建MODEM对象
 
 ```python
 def __init__(self, 
@@ -69,7 +112,7 @@ def __init__(self,
 - packet_size: 单个包大小，128/1024字节，根据protocol style的不同可能会进行调整
 - style_id: 协议风格，不同的风格对功能特性有不同的支持
 
-### 发送数据
+#### 发送数据
 
 ```python
 def send(self, 
@@ -87,7 +130,7 @@ def send(self,
     success packets | 成功包数
 
 
-### 接收数据
+#### 接收数据
 
 ```python
 def recv(self, 
@@ -106,6 +149,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 ```
 
 ## 更新日志
+
+### v1.5 (2024/02/03)
+
+- 增加命令行使用方式
+
 ### v1.5 (2023/05/20 11:00 +00:00)
 
 - 重写了send方法和recv方法

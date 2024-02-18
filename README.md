@@ -12,16 +12,33 @@ README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
   - [CLI TOOL](#cli-tool) 
     - [Sending a batch of files](#sending-a-batch-of-files)
     - [Receive a file](#receive-a-file)
-  - [Demo](#demo)
-  - [Interact with SecureCRT](#interact-with-securecrt)
-  - [Quick start](#quick-start)
-- [API](#api)
-  - [Create MODEM Object](#create-modem-object)
-  - [Send files](#send-files)
-  - [Receive files](#receive-files)
-  - [Debug](#debug)
+  - [Source Code](#source-code)
+  - [API](#api)
+    - [Create MODEM Object](#create-modem-object)
+    - [Send files](#send-files)
+    - [Receive files](#receive-files)
+- [Debug](#debug)
 - [Changelog](#changelog)
 - [License](#license)
+
+## Demo
+
+### Test the sending and receiving functions
+
+If you want to run the test sample, please do the following:
+1. use virtual serial port tool to generate COM1 and COM2 that can communicate
+2. run the FileReceiver.py and FileSender.py on the command line
+
+The specific transmission process is shown in the following figure:
+![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/console_test.gif)
+
+### Interact with SecureCRT
+
+Interact with SecureCRT as sender
+![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sender.gif)
+
+Interact with SecureCRT as Finder
+![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/receiver.gif)
 
 ## Installation
 ```Bash
@@ -53,28 +70,7 @@ ymodem recv ./ -p COM4 -b 115200
 python -m ymodem recv ./ -p COM4 -b 115200
 ```
 
-
-
-## Demo
-
-### Test the sending and receiving functions
-
-If you want to run the test sample, please do the following:
-1. use virtual serial port tool to generate COM1 and COM2 that can communicate
-2. run the FileReceiver.py and FileSender.py on the command line
-
-The specific transmission process is shown in the following figure:
-![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/console_test.gif)
-
-### Interact with SecureCRT
-
-Interact with SecureCRT as sender
-![SecureCRT1](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/sender.gif)
-
-Interact with SecureCRT as Finder
-![SecureCRT2](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/receiver.gif)
-
-## Quick start
+### Source Code
 
 ```python
 from ymodem.Socket import ModemSocket
@@ -99,9 +95,10 @@ cli.recv(folder_path)
 
 For more detailed usage, please refer to the demo/FileReceiver.py and demo/FileSender.py files.
 
-## API
 
-### Create MODEM Object
+### API
+
+#### Create MODEM Object
 
 ```python
 def __init__(self, 
@@ -117,7 +114,7 @@ def __init__(self,
 - packet_size: The size of a single packet, 128/1024 bytes, may be adjusted depending on the protocol style
 - style_id: Protocol style, different styles have different support for functional features
 
-### Send files
+#### Send files
 
 ```python
 def send(self, 
@@ -135,7 +132,7 @@ def send(self,
     total packets | number of packets plan to send
     success packets | number of packets successfully sent
 
-### Receive files
+#### Receive files
 
 ```python
 def recv(self, 
@@ -159,7 +156,6 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 ### v1.5 (2024/02/03)
 
 - Added cli tool to iteract with YMODEM via Serial bus
-- Fix of transaction end logic in send()
 
 
 ### v1.5 (2023/05/20 11:00 +00:00)
