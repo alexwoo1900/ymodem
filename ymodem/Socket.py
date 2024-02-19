@@ -805,7 +805,7 @@ class ModemSocket(Channel):
                             self.logger.warning("[Receiver]: Received data timed out.")
 
                     # invalid header: expired sequence
-                    elif 0 <= seq1 <= task.last_success_sequence:
+                    elif 0 <= seq1 <= task.success_packet_count:
                         self.logger.warning("[Receiver]: Expired sequence, drop the whole packet.")
                         self.read(packet_size + 1 + crc)
 
@@ -1038,7 +1038,3 @@ class _TransmissionTask:
     @success_packet_count.setter
     def success_packet_count(self, v: int):
         self._success_packet_count = v
-
-    @property
-    def last_success_sequence(self) -> int:
-        return self._success_packet_count - 1

@@ -135,6 +135,10 @@ def recv(self,
 ```
 - callback： 回调函数，格式同send的callback。
 
+#### 注意事项
+
+根据通讯环境不同，开发者可能需要手动调整_read_and_wait或_write_and_wait的超时参数。
+
 ## 调试
 
 如果想要输出调试信息，请把日志等级设成DEBUG。

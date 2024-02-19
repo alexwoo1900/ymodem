@@ -138,6 +138,10 @@ def recv(self,
 
 - callback: callback function. Same as the callback of send().
 
+#### ATTENTION
+
+Depending on different communication environments, developers may need to manually adjust timeout parameters in _read_and_wait or _write_and_wait.
+
 ## Debug
 
 If you want to output debugging information, set the log level to DEBUG.
