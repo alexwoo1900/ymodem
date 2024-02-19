@@ -119,7 +119,7 @@ def main():
 
         finally:
             serial_io.close()
-            logger.info(f"Port {args['port']} closed")
+            logger.info(f"\nPort {args['port']} closed")
 
 
 if __name__ == '__main__':

@@ -108,7 +108,7 @@ class ModemSocket(Channel):
         # XYMODEM process
         if self.protocol_type == ProtocolType.XMODEM or self.protocol_type == ProtocolType.YMODEM:
 
-            tasks = []      # type: List[_ModemFile]
+            tasks = []      # type: List[_TransmissionTask]
             stream = None   # type: BufferedReader
 
             # XMODEM and XMODEM_1K only supports single file transfer
@@ -123,7 +123,7 @@ class ModemSocket(Channel):
             #############################################################################################
             for path in paths:
                 if os.path.isfile(path):
-                    tasks.append(_ModemFile(path))
+                    tasks.append(_TransmissionTask(path))
 
             for task_index, task in enumerate(tasks):
 
@@ -327,8 +327,7 @@ class ModemSocket(Channel):
                     crc = 1
 
                 sequence = 1
-                total_packet_count = math.ceil(task.total / self._packet_size)
-                success_packet_count = 0
+                task.success_packet_count = 0
                 while True:
                     try:
                         data = stream.read(self._packet_size)
@@ -349,6 +348,7 @@ class ModemSocket(Channel):
                     header = self._make_send_header(self._packet_size, sequence)
                     self.logger.debug(f"[Sender]: {'SOH' if self._packet_size == 128 else 'STX'} ->")
                     # fill with 1AH(^z)
+                    data_length = len(data)
                     data = data.ljust(self._packet_size, b"\x1a")
                     checksum = self._make_send_checksum(crc, data)
 
@@ -363,9 +363,10 @@ class ModemSocket(Channel):
                                 c = self._read_and_wait([ACK])
                                 if c:
                                     self.logger.debug("[Sender]: <- ACK")
-                                    success_packet_count += 1
+                                    task.sent += data_length
+                                    task.success_packet_count += 1
                                     if callable(callback):
-                                        callback(task_index, task.name, total_packet_count, success_packet_count)
+                                        callback(task_index, task.name, task.total, task.sent)
                                     break
                                 else:
                                     self.logger.warning("[Sender]: No ACK from Receiver, preparing to retransmit.")
@@ -381,9 +382,10 @@ class ModemSocket(Channel):
                         else:
                             self.write(header + data + checksum)
                             self.logger.debug(f"[Sender]: Data packet {sequence} ->")
-                            success_packet_count += 1
+                            task.sent += self._packet_size
+                            task.success_packet_count += 1
                             if callable(callback):
-                                callback(task_index, task.name, total_packet_count, success_packet_count)
+                                callback(task_index, task.name, task.total, task.sent)
                             # 500 microseconds, high success rate delay
                             # self._delay(0.0005)
                             break
@@ -449,7 +451,7 @@ class ModemSocket(Channel):
 
             while True:
 
-                task = _ModemFile()
+                task = _TransmissionTask()
                 
                 if self.protocol_type == ProtocolType.YMODEM:
                     '''
@@ -705,7 +707,7 @@ class ModemSocket(Channel):
 
                 retries = 0
                 sequence = 1
-                success_packet_count = 0
+                task.success_packet_count = 0
                 while True:
                     if c == SOH:
                         self.logger.debug("[Receiver]: <- SOH")
@@ -726,8 +728,6 @@ class ModemSocket(Channel):
                             stream.close()
                         break
 
-                    total_packet_count = math.ceil(task.total / packet_size)
-
                     seq1 = self.read(1)
                     if seq1:
                         seq1 = ord(seq1)
@@ -747,7 +747,10 @@ class ModemSocket(Channel):
                     3) any other block number indicates a fatal loss of synchronization, such as the rare case
                     of the sender getting a line-glitch that looked like an <ack>. Abort the transmission, sending a <can>
                     '''
+
+                    # default no confirm and no forward
                     received = False
+                    forward = False
 
                     if (seq1 == seq2 == sequence):
                         data = self.read(packet_size + 1 + crc)
@@ -758,7 +761,6 @@ class ModemSocket(Channel):
 
                             # Write the original data to the target file
                             if valid:
-                                success_packet_count += 1
                                 self.logger.debug(f"[Receiver]: <- Data packet {sequence}")
 
                                 valid_length = packet_size
@@ -775,6 +777,7 @@ class ModemSocket(Channel):
                                 data = data[:valid_length]
 
                                 task.received += len(data)
+                                task.success_packet_count += 1
 
                                 try:
                                     stream.write(data)
@@ -787,9 +790,11 @@ class ModemSocket(Channel):
                                     return False
 
                                 if callable(callback):
-                                    callback(task_index, task.name, total_packet_count, success_packet_count)
+                                    callback(task_index, task.name, task.total, task.received)
 
+                                # confirm and forward
                                 received = True
+                                forward = True
 
                             # broken packet
                             else:
@@ -798,6 +803,14 @@ class ModemSocket(Channel):
                         # timeout received data
                         else:
                             self.logger.warning("[Receiver]: Received data timed out.")
+
+                    # invalid header: expired sequence
+                    elif 0 <= seq1 <= task.last_success_sequence:
+                        self.logger.warning("[Receiver]: Expired sequence, drop the whole packet.")
+                        self.read(packet_size + 1 + crc)
+
+                        # confirm but no forward
+                        received = True
 
                     # invalid header: wrong sequence
                     else:
@@ -826,7 +839,8 @@ class ModemSocket(Channel):
                         self.logger.debug("[Receiver]: CAN ->")
                         return False
                     else:
-                        sequence = (sequence + 1) % 0x100
+                        if forward:
+                            sequence = (sequence + 1) % 0x100
                         if self.protocol_type == ProtocolType.XMODEM or self.protocol_subtype == ProtocolSubType.YMODEM_BATCH_FILE_TRANSMISSION:
                             c = self._write_and_wait(ACK, [SOH, STX, CAN, EOT])
                             self.logger.debug("[Receiver]: ACK ->")
@@ -935,15 +949,19 @@ class ModemSocket(Channel):
         return valid, data
     
 
-class _ModemFile:
+class _TransmissionTask:
     def __init__(self, path: Optional[str] = None):
         self._path = path or ""
         self._name = os.path.basename(path) if path else ""
-        self._total_length = os.path.getsize(path) if path else 0
         self._mtime = os.path.getmtime(path) if path else 0
-        self._received_length = 0
         self._mode = 0
         self._sn = 0
+
+        self._total_length = os.path.getsize(path) if path else 0
+        self._sent_length = 0
+        self._received_length = 0
+        self._total_packet_count = -1
+        self._success_packet_count = -1
 
     @property
     def path(self) -> str:
@@ -964,6 +982,14 @@ class _ModemFile:
     @total.setter
     def total(self, v: int):
         self._total_length = v
+
+    @property
+    def sent(self) -> int:
+        return self._sent_length
+    
+    @sent.setter
+    def sent(self, v: int):
+        self._sent_length = v
 
     @property
     def received(self) -> int:
@@ -997,3 +1023,22 @@ class _ModemFile:
     def sn(self, v: int):
         self._sn = v
 
+    @property
+    def total_packet_count(self) -> int:
+        return self._total_packet_count
+    
+    @total_packet_count.setter
+    def total_packet_count(self, v: int):
+        self._total_packet_count = v
+
+    @property
+    def success_packet_count(self) -> int:
+        return self._success_packet_count
+    
+    @success_packet_count.setter
+    def success_packet_count(self, v: int):
+        self._success_packet_count = v
+
+    @property
+    def last_success_sequence(self) -> int:
+        return self._success_packet_count - 1

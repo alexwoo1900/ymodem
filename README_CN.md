@@ -24,11 +24,6 @@ README: [ENGLIST](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 
 ### 单独测试发送与接收功能 
 
-如果想运行测试例子，请执行以下操作：
-1. 利用串口虚拟工具在本地生成可相互通信的COM1与COM2
-2. 在命令行中分别运行FileReceiver.py与FileSender.py文件
-
-具体的传输过程如下图所示：
 ![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/console_test.gif)
 
 ### 与SecureCRT交互

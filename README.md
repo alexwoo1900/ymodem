@@ -25,11 +25,6 @@ README: [ENGLISH](https://github.com/alexwoo1900/ymodem/blob/master/README.md) |
 
 ### Test the sending and receiving functions
 
-If you want to run the test sample, please do the following:
-1. use virtual serial port tool to generate COM1 and COM2 that can communicate
-2. run the FileReceiver.py and FileSender.py on the command line
-
-The specific transmission process is shown in the following figure:
 ![SenderAndReceiver](https://raw.githubusercontent.com/alexwoo1900/ymodem/master/docs/assets/console_test.gif)
 
 ### Interact with SecureCRT
