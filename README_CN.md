@@ -87,7 +87,7 @@ cli.send([file_path1, file_path2, file_path3 ...])
 cli.recv(folder_path)
 ```
 
-更详细的使用方式见demo/FileReceiver.py与demo/FileSender.py文件。
+更详细的使用方式见__main__.py。
 
 ### API
 
@@ -133,6 +133,7 @@ def recv(self,
          callback: Optional[Callable[[int, str, int, int], None]] = None
         ) -> bool:
 ```
+- path: 用于保存目标文件的文件夹路径
 - callback： 回调函数，格式同send的callback。
 
 #### 注意事项
