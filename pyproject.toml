@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ymodem"
 version = "1.5"
+
 description = "Ymodem Python implementation"
 
 readme = "README.md"
