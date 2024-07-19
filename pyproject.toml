@@ -12,6 +12,7 @@ readme = "README.md"
 requires-python = ">=3.7"
 keywords = ["pyserial", "serial", "xmodem", "ymodem", "python", "python3"]
 classifiers = [
+    "License :: OSI Approved :: MIT License",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Programming Language :: Python",
