@@ -429,7 +429,7 @@ class ModemSocket(Channel):
             Transmission of a null pathname terminates batch file transmission.
             '''
 
-            if self.protocol_type == ProtocolType.YMODEM:
+            if tasks and self.protocol_type == ProtocolType.YMODEM:
                 header = self._make_send_header(self._packet_size, 0)
                 data = bytearray().ljust(self._packet_size, b"\x00")
                 checksum = self._make_send_checksum(crc, data)
