@@ -881,7 +881,7 @@ class ModemSocket(Channel):
 
     def _read_and_wait(self, 
                         wait_chars: List[str],
-                        wait_time: int = 1
+                        wait_time: int = 5
                         ) -> Optional[str]:
         start_time = time.perf_counter()
         while True:
